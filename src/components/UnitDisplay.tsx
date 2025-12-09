@@ -1,7 +1,8 @@
 // src/components/UnitDisplay.tsx
 import React from 'react';
 import StatBar from './StatBar';
-import { ActiveStatus } from '@/data/typesEffect'; // Import type
+import { ActiveStatus, FloatingTextData } from '@/data/typesEffect'; // Import type
+import FloatingText from '@/components/FloatingText';
 
 interface UnitDisplayProps {
   name: string;
@@ -17,6 +18,10 @@ interface UnitDisplayProps {
   onClick?: () => void;
   // 🔥 เพิ่ม prop รับ Status
   statuses?: ActiveStatus[];
+  floatingTexts?: FloatingTextData[];
+  onFloatingTextComplete?: (id: string) => void;
+  // ตัวละครสั่นเวลาโดนโจมตี
+  isShaking?: boolean;
 }
 
 export default function UnitDisplay({
@@ -26,7 +31,10 @@ export default function UnitDisplay({
   variant = 'PLAYER',
   isSelected = false,
   onClick,
-  statuses = [] // default ว่างเปล่า
+  statuses = [], // default ว่างเปล่า
+  floatingTexts = [],
+  onFloatingTextComplete = () => {},
+  isShaking = false,
 }: UnitDisplayProps) {
 
   const isDead = hp <= 0;
@@ -45,6 +53,13 @@ export default function UnitDisplay({
     >
       {isSelected && <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-yellow-400 font-bold animate-bounce">🔻</div>}
 
+      {/* ✅ ส่วนแสดง Floating Texts (วางไว้บนสุดใน relative container) */}
+      <div className="absolute inset-0 z-40 pointer-events-none">
+         {floatingTexts.map(ft => (
+            <FloatingText key={ft.id} data={ft} onComplete={onFloatingTextComplete} />
+         ))}
+      </div>
+
       {/* 🔥 STATUS EFFECT ICONS (ลอยอยู่บนหัว) */}
       <div className="absolute -top-8 w-full flex justify-center gap-1 z-30">
         {statuses.map((status) => (
@@ -55,9 +70,18 @@ export default function UnitDisplay({
         ))}
       </div>
 
+      
+
       {/* Character Box */}
-      <div className={`w-full aspect-[3/4] rounded-lg flex flex-col items-center justify-center shadow-lg relative ${isSelected ? 'border-white' : `border-${color}-500`} bg-${color}-700 border-4`}>
-         <span className={`${avatarSize} drop-shadow-md select-none`}>{avatar || "?"}</span>
+      <div 
+              className={`
+                w-full aspect-[3/4] rounded-lg flex flex-col items-center justify-center shadow-lg relative
+                ${isSelected ? 'border-white' : `border-${color}-500`}
+                bg-${color}-700 border-4
+                ${isShaking ? 'animate-shake bg-red-800' : ''}  /* 🔥 ถ้าสั่น ให้ขยับและกระพริบแดง */
+              `}
+            >         
+        <span className={`${avatarSize} drop-shadow-md select-none`}>{avatar || "?"}</span>
          
          {!isBoss && variant !== 'MINION' && <div className="mt-2 text-white font-bold text-center leading-tight px-1 text-sm">{name}</div>}
          

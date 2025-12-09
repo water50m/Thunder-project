@@ -30,3 +30,11 @@ export interface ActiveStatus {
   duration: number;
   icon: string;
 }
+
+export type FloatingTextType = 'DMG' | 'HEAL' | 'BLOCK' | 'BUFF' | 'DOT' | 'MISS';
+
+export interface FloatingTextData {
+  id: string;
+  text: string;
+  type: FloatingTextType;
+}

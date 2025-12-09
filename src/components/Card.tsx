@@ -8,9 +8,10 @@ interface CardProps {
   onClick?: () => void;
   bonus?: number;       // ค่า Power ที่บวกเพิ่ม (ถ้ามี)
   disabled?: boolean;   // กดไม่ได้ (เช่น ไม่ใช่เทิร์นเรา)
+  className?: string;
 }
 
-export default function Card({ data, isSelected, onClick, bonus = 0, disabled = false }: CardProps) {
+export default function Card({ data, isSelected, onClick, bonus = 0, disabled = false, className = "w-full h-full" }: CardProps) {
   
   // Logic เลือกไอคอนตามประเภท
   let typeIcon = '';
@@ -30,7 +31,8 @@ export default function Card({ data, isSelected, onClick, bonus = 0, disabled = 
     <div 
       onClick={!disabled ? onClick : undefined}
       className={`
-        relative w-32 h-48 rounded-xl border-2 flex flex-col items-center p-2 text-center transition-all duration-200 select-none
+        relative rounded-xl border-2 flex flex-col items-center p-2 text-center transition-all duration-200 select-none
+        ${className}
         ${disabled ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer hover:-translate-y-4'}
         ${isSelected 
             ? 'border-yellow-400 bg-slate-800 -translate-y-8 z-20 shadow-[0_0_20px_gold] scale-105' 
