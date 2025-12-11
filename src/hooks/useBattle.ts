@@ -17,6 +17,21 @@ type BattleState = {
   shaking: boolean[]; // ✅ เพิ่ม State Shaking (เก็บเป็น Array [T, F, F, T])
 };
 
+const shuffleArray = (array: string[]): string[] => {
+    let currentIndex = array.length, randomIndex;
+    const arrayCopy = [...array]; // 💡 ทำสำเนาเพื่อไม่กระทบ Array ต้นฉบับ
+
+    while (currentIndex !== 0) {
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+
+        [arrayCopy[currentIndex], arrayCopy[randomIndex]] = [
+            arrayCopy[randomIndex], arrayCopy[currentIndex]];
+    }
+
+    return arrayCopy;
+};
+
 export function useBattle() {
   const router = useRouter();
   
@@ -34,6 +49,9 @@ export function useBattle() {
   const [rewardOptions, setRewardOptions] = useState<CardType[]>([]);
   const [selectedCharId, setSelectedCharId] = useState<number | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+
+  const [drawPile, setDrawPile] = useState<string[]>([]);
+  const [discardPile, setDiscardPile] = useState<string[]>([]);
   
   // --- Helpers ---
   const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -42,14 +60,36 @@ export function useBattle() {
       textsArr[targetIdx].push({ id: `ft-${Date.now()}-${Math.random()}`, text, type });
   };
 
+  
+
   const drawCards = (count: number, currentHand: CardType[] = []) => {
-    const newCards: CardType[] = [];
-    for (let i = 0; i < count; i++) {
-      const proto = CARD_POOL[Math.floor(Math.random() * CARD_POOL.length)];
-      newCards.push({ ...proto, id: `${proto.id}-${Date.now()}-${i}` });
-    }
-    setHand([...currentHand, ...newCards]);
-  };
+    setDrawPile(prevDrawPile => {
+        let newDrawPile = [...prevDrawPile];
+        let newDiscardPile = [...discardPile];
+        const newCards: CardType[] = [...currentHand];
+        
+        for (let i = 0; i < count; i++) {
+            // 1. ถ้า Draw Pile หมด ให้ Shuffle Discard Pile กลับเข้าไป
+            if (newDrawPile.length === 0) {
+                if (newDiscardPile.length === 0) break; // ไม่มีกองจั่วแล้ว
+                newDrawPile = shuffleArray(newDiscardPile);
+                  newDiscardPile = [];
+                setLog("Shuffling Discard Pile into Draw Pile!");
+            }
+
+            // 2. จั่วการ์ดจาก Draw Pile
+            const cardId = newDrawPile.pop()!;
+            const proto = CARD_POOL.find(c => c.id === cardId) || CARD_POOL[0]; // หา Card Prototype
+            
+            // 3. สร้าง Card Instance
+            newCards.push({ ...proto, id: `${proto.id}-${Date.now()}-${i}` });
+        }
+        
+        setHand(newCards);
+        setDiscardPile(newDiscardPile);
+        return newDrawPile;
+    });
+  };
 
   // ✅ Auto Reset Shaking: เมื่อมีการสั่นเกิดขึ้น ให้ตั้งเวลาลบออกใน 400ms
   useEffect(() => {
@@ -71,11 +111,15 @@ export function useBattle() {
 
   // --- Actions ---
   const initializeGame = () => {
-    const savedTeam = localStorage.getItem('myTeam');
-    if (savedTeam) {
-      const parsedTeam = JSON.parse(savedTeam);
-      if (!parsedTeam[0].ultimate) { localStorage.removeItem('myTeam'); router.push('/game'); return; }
-      setTeam(parsedTeam);
+      const savedTeam = localStorage.getItem('myTeam');
+      const globalDeckData = localStorage.getItem('globalDeck'); // 💡 สมมติว่า Global Deck ถูกเก็บไว้ที่นี่
+      
+      if (savedTeam && globalDeckData) {
+          const parsedTeam = JSON.parse(savedTeam);
+          const parsedDeck = JSON.parse(globalDeckData);
+
+          if (!parsedTeam[0].ultimate) { localStorage.removeItem('myTeam'); router.push('/game'); return; }
+          setTeam(parsedTeam);
       setBattleState({
         hp: [parsedTeam[0].stats.hp, parsedTeam[1].stats.hp, 1500, 300],
         shield: [0, 0, 0, 0],
@@ -324,9 +368,11 @@ export function useBattle() {
                   // จบการทำงานสำหรับ CleanseHeal
                   // ในเกมจริง อาจต้องมีการรอดีเลย์ก่อนเข้าสู่ Enemy Turn
                   setPlayerActionCount(prev => prev + 1);
-                  setHand(hand.filter(c => c.id !== selectedCardId));
-                  setSelectedCardId(null);
+                  setHand(prev => prev.filter(c => c.id !== selectedCardId));     
+                  setDiscardPile(prev => [...prev, card.id]);             
+                  setSelectedCardId(null); 
                   setPhase('PLAYER_THINKING'); 
+              
                   return prev;
                 }
               if (card.effect === 'GroupHealDamage') {
