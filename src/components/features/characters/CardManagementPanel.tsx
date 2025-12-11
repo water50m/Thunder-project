@@ -4,13 +4,13 @@ import { AVAILABLE_CARDS, EXTRA_CARDS } from '@/data/cards';
 
 // ✅ จุดที่ต้องเช็ค: Interface นี้ต้องมี draggedItem
 interface Props {
-  equippedIds: string[];
-  draggedItem: any; // <--- ต้องมีบรรทัดนี้ครับ Error ถึงจะหาย!
+  equippedIds: (string | null)[];
+  draggedItem: any; 
   charId: number;
   onToggleCard: (id: string) => void;
   onInspect: (item: any) => void;
   onDragStart: (e: React.DragEvent, item: any, type: string) => void;
-  onDropCard: (e: React.DragEvent) => void;
+  onDropCard: (e: React.DragEvent, slotIndex: number) => void;
 }
 
 export default function CardManagementPanel({
@@ -25,16 +25,15 @@ export default function CardManagementPanel({
   
   const handleDropToPool = (e: React.DragEvent) => {
     e.preventDefault();
-    console.log("Dropped to pool area");
-    console.log("Dragged Item:", draggedItem);
+
     // เช็คว่าสิ่งที่ลากมาคือการ์ด และมันถูกใส่อยู่ (อยู่ใน equippedIds)
     if (draggedItem?.dragType === 'CARD' && equippedIds.includes(draggedItem.id)) {
-        console.log("Dropping card back to pool:", draggedItem.id);
+
         onToggleCard(draggedItem.id); // สั่งถอดการ์ด
     }
   };
 
-  const getCard = (id: string) => EXTRA_CARDS.find(c => c.id === id);
+  const getCard = (id: string | null) => id ? EXTRA_CARDS.find(c => c.id === id) : null;
 
   return (
     <div className="flex-1 bg-slate-800/50 border-r border-slate-700 p-6 overflow-y-auto">
@@ -45,16 +44,22 @@ export default function CardManagementPanel({
             <div className="text-xs text-slate-500 font-bold mb-2 uppercase">Equipped (2 Max)</div>
             
             <div className="flex gap-3" 
-                 onDragOver={(e) => e.preventDefault()} 
-                 onDrop={onDropCard}
             >
                 {[0, 1].map(i => {
+ 
                     const card = getCard(equippedIds[i]);
+
                     return (
                         <div key={i} 
+
+                             onDragOver={(e) => e.preventDefault()} 
+                             onDrop={(e) => onDropCard(e, i)}
+
                              draggable={!!card}
                              onDragStart={(e) => card && onDragStart(e, card, 'CARD')}
+
                              onClick={() => card && onToggleCard(card.id)} 
+
                              onMouseEnter={() => card && onInspect(card)}
                              className={`
                                 flex-1 aspect-[3/4] border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer transition-all relative group
@@ -75,11 +80,7 @@ export default function CardManagementPanel({
                                 </div>
                             )}
 
-                            {/* {card && (
-                                <div className="absolute inset-0 bg-red-900/90 hidden group-hover:flex items-center justify-center text-xs font-bold text-white rounded-lg z-10">
-                                    REMOVE
-                                </div>
-                            )} */}
+
                         </div>
                     )
                 })}

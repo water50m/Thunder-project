@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Character } from '@/data/characters';
 import { CARD_POOL, Card as CardType } from '@/data/cards';
-import { ActiveStatus, EffectConfig, FloatingTextData, FloatingTextType } from '@/data/typesEffect';
+import { ActiveStatus, EffectConfig, FloatingTextData, FloatingTextType, EffectDebuff } from '@/data/typesEffect';
 import { calculateDamage, calculateCardBonus, calculateUltCharge } from '@/utils/battleLogic';
 
 type GamePhase = 'PLAYER_THINKING' | 'PLAYER_EXECUTING' | 'ENEMY_TURN' | 'PLAYER_RESTOCK' | 'GAME_WON' | 'GAME_OVER';
@@ -96,7 +96,11 @@ export function useBattle() {
         return { ...prev, floatingTexts: newTexts };
       });
   }, []);
-
+  const getAllyTargets = (allyState: Record<string, any>): string[] => {
+    // เนื่องจากพันธมิตร (allyState) ใน context นี้คือ Player ทั้งหมด
+    // เราจึงส่งคืน key (ID) ของ Object state นั้นๆ
+    return Object.keys(allyState); 
+};
   const selectChar = (id: number) => { if (phase === 'PLAYER_THINKING') setSelectedCharId(id === selectedCharId ? null : id); };
   const selectCard = (id: string) => { if (phase === 'PLAYER_THINKING' || phase === 'PLAYER_RESTOCK') setSelectedCardId(id === selectedCardId ? null : id); };
 
@@ -267,6 +271,128 @@ export function useBattle() {
                 addFloatingText(newTexts, actorIndex, `${healAmt}`, 'HEAL');
              }
         } else if (card.type === 'Heal') {
+          if (card.effect === 'CleanseHeal') {
+              setPhase('PLAYER_EXECUTING');
+                  setLog(`${actor.name} ใช้ ${card.name} เพื่อชำระล้างและรักษา!`);
+
+                  setBattleState(prev => {
+                      let newHp = [...prev.hp];
+                      let newStatuses = prev.statuses.map(arr => [...arr]);
+                      let newTexts = prev.floatingTexts.map(arr => [...arr]);
+                      let totalDebuffsRemoved = 0;
+
+                      // 1. วนลูปผ่านพันธมิตรทั้งหมด (ดัชนี 0 และ 1)
+                      for (let i = 0; i < 2; i++) {
+                          let debuffsRemovedOnChar = 0;
+
+                          // กรองสถานะ: เก็บเฉพาะสถานะที่ไม่ใช่ Debuff (DOT)
+                          const cleansedStatuses: ActiveStatus[] = [];
+                          newStatuses[i].forEach(s => {
+                              if (s.type in EffectDebuff) {
+                                  debuffsRemovedOnChar++;
+                                  // เพิ่มข้อความล้างสถานะ
+                                  addFloatingText(newTexts, i, `CLEANSE!`, 'BUFF'); 
+                              } else {
+                                  cleansedStatuses.push(s);
+                              }
+                          });
+                          
+                          newStatuses[i] = cleansedStatuses;
+                          totalDebuffsRemoved += debuffsRemovedOnChar;
+                      }
+
+                      // 2. คำนวณการรักษาโบนัส
+                      // โบนัส = 10% Max HP (ของตัวละครที่ใช้) * จำนวน Debuff ที่ล้างออกไปทั้งหมด
+                      const baseHealPerDebuff = Math.floor(team[actorIndex].stats.hp * 0.10);
+                      const bonusHeal = baseHealPerDebuff * totalDebuffsRemoved;
+                      
+                      // 3. รักษาพันธมิตรทุกคนด้วยโบนัสที่คำนวณได้
+                      for (let i = 0; i < 2; i++) {
+                          const charMaxHp = team[i].stats.hp;
+                          const healAmt = Math.min(charMaxHp - newHp[i], bonusHeal);
+
+                          if (healAmt > 0) {
+                              newHp[i] += healAmt;
+                              addFloatingText(newTexts, i, `${healAmt}`, 'HEAL');
+                          }
+                      }
+                      
+                      // 4. อัปเดตสถานะ
+                      return { ...prev, hp: newHp, statuses: newStatuses, floatingTexts: newTexts, ult: newUlt };
+                  });
+
+                  // จบการทำงานสำหรับ CleanseHeal
+                  // ในเกมจริง อาจต้องมีการรอดีเลย์ก่อนเข้าสู่ Enemy Turn
+                  setPlayerActionCount(prev => prev + 1);
+                  setHand(hand.filter(c => c.id !== selectedCardId));
+                  setSelectedCardId(null);
+                  setPhase('PLAYER_THINKING'); 
+                  return prev;
+                }
+              if (card.effect === 'GroupHealDamage') {
+                setPhase('PLAYER_EXECUTING');
+                setLog(`${actor.name} ใช้ ${card.name} เพื่อรักษาพันธมิตรและโจมตีด้วยพลังงานที่รวบรวมได้!`);
+                
+                // 1. คำนวณค่า Base Heal และ Total Heal
+                let totalActualHeal = 0;
+                const baseHealValue = Math.floor(actor.stats.hp * 0.20); // 20% ของ Max HP ผู้ใช้
+                
+                // ------------------------------------------------------------------
+                // A. การรักษาพันธมิตร
+                // ------------------------------------------------------------------
+                setBattleState(prev => {
+                    let newHp = [...prev.hp]; 
+                    let newTexts = prev.floatingTexts.map(arr => [...arr]);
+
+                    // วนลูปผ่านพันธมิตรทั้งหมด (i = 0, 1)
+                    for (let i = 0; i < 2; i++) {
+                        const charMaxHp = team[i].stats.hp;
+                        
+                        // คำนวณการรักษาจริง (จำกัดไม่ให้เกิน Max HP)
+                        const healAmt = Math.min(charMaxHp - newHp[i], baseHealValue);
+                        
+                        if (healAmt > 0) {
+                            newHp[i] += healAmt;
+                            totalActualHeal += healAmt; // ✅ นับรวมค่า Heal ที่ทำได้จริง
+                            addFloatingText(newTexts, i, `${healAmt}`, 'HEAL');
+                        }
+                    }
+                    
+                    // คืนสถานะ HP และ Text หลังจากรักษา
+                    return { ...prev, hp: newHp, floatingTexts: newTexts, ult: newUlt };
+                });
+
+                // await delay(500); // หน่วงเวลาเล็กน้อยเพื่อให้ Animation การรักษาแสดงผล
+                
+                // ------------------------------------------------------------------
+                // B. แปลงค่า Heal เป็น Damage
+                // ------------------------------------------------------------------
+                
+                // สร้าง Effect Config สำหรับความเสียหาย
+                const damageEffect: EffectConfig = {
+                    type: 'INSTANT_DMG',
+                    value: totalActualHeal, // ค่า Damage เท่ากับค่า Heal รวมที่ทำได้จริง
+                    duration: 0,
+                    target: 'ENEMY_SINGLE' 
+                };
+                
+                // ใช้ applyEffect เพื่อส่ง Damage เข้าสู่เป้าหมายเดียว
+                applyEffect(damageEffect, actorIndex); 
+                
+                // await delay(500); // หน่วงเวลาเพื่อให้ Animation ความเสียหายแสดงผล
+
+                // ------------------------------------------------------------------
+                // C. สิ้นสุดเทิร์น
+                // ------------------------------------------------------------------
+
+                // ลบการ์ด, เคลียร์สถานะเลือก, และเข้าสู่ Player Thinking (หรือจบเทิร์น)
+                setPlayerActionCount(prev => prev + 1);
+                setHand(hand.filter(c => c.id !== selectedCardId));
+                setSelectedCardId(null);
+                setPhase('PLAYER_THINKING'); 
+                return prev;
+            }
+          
              if (card.effect === 'AoE') { 
                 newHp[0]+=finalValue; newHp[1]+=finalValue; 
                 addFloatingText(newTexts, 0, `${finalValue}`, 'HEAL'); 

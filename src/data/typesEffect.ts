@@ -7,6 +7,9 @@ export type EffectType =
   | 'HOT'           // Heal Over Time (เลือดเด้งต่อเนื่อง)
   | 'BUFF_POWER'    // เพิ่มพลัง Power
   | 'DEFEND_UP';    // เพิ่มเกราะต่อเนื่อง
+  
+export const EffectDebuff = [
+  'DOT' ]        // Damage Over Time (เลือดลดต่อเนื่อง)
 
 export interface EffectConfig {
   type: EffectType;

@@ -10,7 +10,8 @@ export interface Card {
   cost: number;
   description: string;
   icon: string;
-  effect?: 'Pierce' | 'Drain' | 'AoE' | 'None' | 'ShieldBased' | 'ShieldExplode' | 'BurnDetonate';  ultimateCharge: number;
+  effect?: 'Pierce' | 'Drain' | 'AoE' | 'None' | 'ShieldBased' | 'ShieldExplode' | 'BurnDetonate' | 'GroupHealDamage' | 'CleanseHeal';  
+  ultimateCharge: number;
   exclusiveTo?: number;
 }
 
@@ -64,6 +65,34 @@ export const CARD_POOL: Card[] = [
 
 // 🔥 จุดที่แก้: สร้างตัวแปรแยก และระบุ type เป็น Card[] ชัดเจน
 export const EXTRA_CARDS: Card[] = [
+  {
+      id: 'lumina-1', 
+      name: "Flash Heal", 
+      type: 'Heal',
+      // เนื่องจาก Value จะถูกใช้เป็นฐานในการคำนวณ heal/damage 
+      // ผมจะกำหนดให้ Value คือ % การ Heal (0.20 = 20%)
+      value: 0.20, 
+      cost: 2, 
+      description: "Heal พันธมิตรทั้งหมด 20% MaxHP และทำความเสียหายเท่ากันต่อศัตรู 1 ตัว",
+      icon: "✨✚", 
+      effect: 'GroupHealDamage', // 👈 เอฟเฟกต์ใหม่: Heal แล้ว Damage
+      ultimateCharge: 20,
+      exclusiveTo: 2, // สมมติว่า Lumina คือ ID 2
+  },
+  
+  // การ์ด Lumina ใบที่ 2: Lumina Smite (หรือ Cleanse Smite)
+  {
+      id: 'lumina-2', 
+      name: "Lumina Smite", 
+      type: 'Heal',
+      value: 0, // ค่าฐานไม่มี (ใช้ค่าจาก debuff)
+      cost: 1, 
+      description: "ล้าง Debuff ทั้งหมดให้พันธมิตร Heal 10% ต่อ 1 Debuff ที่ล้างออก",
+      icon: "✨💥", 
+      effect: 'CleanseHeal', // 👈 เอฟเฟกต์ใหม่: ล้างแล้ว Heal
+      ultimateCharge: 15,
+      exclusiveTo: 2, // สมมติว่า Lumina คือ ID 2
+  },
   { 
     id: 'blaze-1', name: "Eternal Fire", type: 'Attack', 
     value: 30, cost: 2, description: "เผาไหม้ต่อเนื่อง 10 Turn", 
@@ -101,4 +130,4 @@ export const EXTRA_CARDS: Card[] = [
 export const AVAILABLE_CARDS: Card[] = [
   ...CARD_POOL,
   ...EXTRA_CARDS
-].slice(0, 10);
+]

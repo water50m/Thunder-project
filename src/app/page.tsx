@@ -46,6 +46,13 @@ export default function MainMenu() {
           </button>
         </Link>
 
+        <Link href="/decks" passHref>
+         <button className="w-full py-3 text-lg font-semibold bg-blue-600 hover:bg-blue-500 border-b-4 border-blue-800 hover:border-blue-700 rounded-lg transition-all active:border-b-0 active:translate-y-1">
+
+              Deck 
+          </button>
+          </Link>
+
         {/* 3. SHOPS */}
         <Link href="/shops">
           <button className="w-full py-3 text-lg font-semibold bg-yellow-600 hover:bg-yellow-500 border-b-4 border-yellow-800 hover:border-yellow-700 rounded-lg transition-all active:border-b-0 active:translate-y-1">

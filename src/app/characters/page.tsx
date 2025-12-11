@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import UnitDisplay from '@/components/UnitDisplay';
 import CharacterModal from '@/components/features/characters/CharacterModal';
@@ -9,12 +10,14 @@ export default function CharactersPage() {
   // ✅ เรียกใช้ Logic จาก Hook
 
   const { 
-    gold, myChars, activeChar, 
+    gold, myChars,selectedCharId, activeChar,
     setSelectedCharId, handleUpgrade, toggleEquipCard,
-    toggleEquipItem, equipGear, equipSignature, unequipGear // <--- ดึงมาเพิ่ม
+    toggleEquipItem, equipGear, equipSignature, unequipGear ,// <--- ดึงมาเพิ่ม
+    globalDeck, addToDeck, removeFromDeck,
   } = useCharacterManager();
 
   return (
+    
     <div className="min-h-screen bg-slate-900 text-white p-8 font-sans">
       
       {/* Header */}
@@ -42,10 +45,17 @@ export default function CharactersPage() {
           </div>
         ))}
       </div>
-
+        <Link href="/deck" passHref>
+                    <button 
+                        className="w-full mb-4 px-3 py-2 text-sm font-bold rounded-lg bg-green-700 hover:bg-green-600 text-white transition-colors"
+                    >
+                        📚 Go to Deck Builder ({globalDeck.length} / 30)
+                    </button>
+          </Link>
       {/* ✅ Modal (เรียกใช้ Component เดียวจบ) */}
-      {activeChar && (
+      {selectedCharId && activeChar && (
         <CharacterModal 
+            key={activeChar.id}
             char={activeChar} 
             onClose={() => setSelectedCharId(null)}
             onUpgrade={handleUpgrade}

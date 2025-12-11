@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import UnitDisplay from '@/components/UnitDisplay';
-import { CharacterState } from '@/hooks/useCharacterManager';
-import { AVAILABLE_CARDS } from '@/data/cards';
+import { CharacterState} from '@/hooks/useCharacterManager';
 import { ITEM_POOL } from '@/data/items';
 import { EQUIPMENT_POOL, EquipmentType } from '@/data/equipment';
 import { SIGNATURE_POOL } from '@/data/signatures';
 import DetailedSelectionModal from './DetailedSelectionModal';
 import EquipmentModal from './EquipmentModal';
 import CardManagementPanel from './CardManagementPanel';
+import { Card as CardType } from '@/data/cards';
 
 interface Props {
   char: CharacterState;
@@ -34,13 +34,14 @@ export default function CharacterModal({
 
 
   // Getters
-  const getCard = (id: string) => AVAILABLE_CARDS.find(c => c.id === id);
   const getItem = (id: string) => ITEM_POOL.find(i => i.id === id);
   const getGear = (slot: EquipmentType) => EQUIPMENT_POOL.find(e => e.id === char.equippedGear[slot]);
   
   const [draggedItem, setDraggedItem] = useState<any>(null);
   const [inspectItem, setInspectItem] = useState<any>(null);
   const [hoverSig, setHoverSig] = useState<any>(null);
+
+//   const { equipCardToSlot, removeCard } = useCharacterManager();
   
   const openGearModal = (slot: EquipmentType) => {
       setTargetGearSlot(slot); // เซ็ตว่าจะเลือกของช่องไหน
@@ -51,14 +52,23 @@ export default function CharacterModal({
       setInspectItem(item);  // โชว์รายละเอียดตอนเริ่มลาก
   };
 
-  const handleDropCard = (e: React.DragEvent) => {
-      e.preventDefault();
-      // เช็คว่าของที่ลากมาเป็นการ์ดจริงไหม
-      if (draggedItem?.dragType === 'CARD') {
-          onToggleCard(draggedItem.id);
-      }
-      setDraggedItem(null);
-  };
+  const handleDropCard = (e: React.DragEvent) => { 
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // ✅ Revert: ใช้ draggedItem state โดยตรง
+    if (draggedItem?.dragType === 'CARD') {
+        const cardId = draggedItem.id;
+        
+        // สั่ง toggle (Hook จะจัดการเพิ่ม/ถอดเอง)
+        onToggleCard(cardId); 
+    } else {
+        console.warn("Drag state lost. Please try dragging the card again.");
+    }
+    
+    // Note: การเคลียร์ draggedItem (setDraggedItem(null)) จะถูกทำที่ page.tsx/Hook หลัก
+};
+
 
   return (
     <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-8 animate-fadeIn text-white font-sans select-none">
@@ -175,6 +185,7 @@ export default function CharacterModal({
                 onInspect={setInspectItem}
                 onDragStart={handleDragStart}
                 onDropCard={handleDropCard}
+
             />
 
             {/* ================= COL 4: STATS & ITEMS (Rightmost) ================= */}
