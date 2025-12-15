@@ -16,7 +16,7 @@ export type Character = {
     maxUltimate: number;
   };
   color: string;
-  ultimate: UltimateSkill; // <--- เพิ่ม Field นี้
+  ultimate: UltimateSkill; 
 };
 
 export const charactersData: Character[] = [

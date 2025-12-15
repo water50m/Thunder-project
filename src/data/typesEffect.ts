@@ -6,12 +6,18 @@ export type EffectType =
   | 'DOT'           // Damage Over Time (เลือดลดต่อเนื่อง)
   | 'HOT'           // Heal Over Time (เลือดเด้งต่อเนื่อง)
   | 'BUFF_POWER'    // เพิ่มพลัง Power
-  | 'DEFEND_UP';    // เพิ่มเกราะต่อเนื่อง
+  | 'DEFEND_UP'
+  | 'STRENGTH' // เพิ่ม
+  | 'WEAK'     // เพิ่ม
+  | 'FORTIFY'
+  | 'CURSE_HEAL'
+  | 'BUFF'
+  | 'DEBUFF';    // เพิ่มเกราะต่อเนื่อง
   
 export const EffectDebuff = [
   'DOT' ]        // Damage Over Time (เลือดลดต่อเนื่อง)
 
-export interface EffectConfig {
+export interface UltimateEffect {
   type: EffectType;
   value: number;       // ความแรง
   duration: number;    // จำนวนเทิร์น (0 = ทันที)
@@ -22,7 +28,7 @@ export interface EffectConfig {
 export interface UltimateSkill {
   name: string;
   description: string;
-  effects: EffectConfig[];
+  effects: UltimateEffect[];
 }
 
 // สถานะที่กำลังทำงานอยู่ (Active Status)
@@ -34,7 +40,7 @@ export interface ActiveStatus {
   icon: string;
 }
 
-export type FloatingTextType = 'DMG' | 'HEAL' | 'BLOCK' | 'BUFF' | 'DOT' | 'MISS';
+export type FloatingTextType = 'DMG' | 'HEAL' | 'BLOCK' | 'BUFF' | 'DOT' | 'MISS' | 'DEBUFF' | 'BUFF';
 
 export interface FloatingTextData {
   id: string;

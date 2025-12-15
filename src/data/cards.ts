@@ -1,6 +1,6 @@
 // src/data/cards.ts
 
-export type CardType = 'Attack' | 'Defend' | 'Heal' | 'Special';
+export type CardType = 'Attack' | 'Defend' | 'Heal' | 'Special'  ;
 
 export interface Card {
   id: string;
@@ -10,9 +10,10 @@ export interface Card {
   cost: number;
   description: string;
   icon: string;
-  effect?: 'Pierce' | 'Drain' | 'AoE' | 'None' | 'ShieldBased' | 'ShieldExplode' | 'BurnDetonate' | 'GroupHealDamage' | 'CleanseHeal';  
+  effect?: 'Pierce' | 'Drain' | 'AoE' | 'None' | 'ShieldBased' | 'ShieldExplode' | 'BurnDetonate' | 'GroupHealDamage' | 'CleanseHeal' | 'ApplyStun' | 'ApplyDot' | 'ApplyRegen';  
   ultimateCharge: number;
   exclusiveTo?: number;
+  duration?: number; // สำหรับการ์ดที่มีสถานะต่อเนื่อง (เช่น Burn, Regen)
 }
 
 export const CARD_POOL: Card[] = [
