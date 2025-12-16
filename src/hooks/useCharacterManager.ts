@@ -1,173 +1,240 @@
 "use client";
 
-import { useState } from 'react';
-import { charactersData, Character } from '@/data/characters';
+import { useState, useEffect } from 'react';
+import { Character } from '@/data/characters'; // ✅ ใช้ Type จาก Lib ที่เราสร้างเพื่อให้ตรงกับ DB
 import { EquipmentType, Equipment } from '@/data/equipment';
 
-// ขยาย Type ของตัวละครใน State (เฉพาะหน้านี้)
+// ขยาย Type ของตัวละครใน State
 export interface CharacterState extends Character {
-  equippedCards: string[];
+  equippedCards: string[]; // Map มาจาก equipedSkillCard
   equippedItems: string[];
-  equippedGear: Record<EquipmentType, string | null>; // เก็บ ID Gear แยกตามส่วน
-  equippedSignature: string | null; // เก็บ ID ของประจำตัว (max 1)
+  equippedGear: Record<EquipmentType, string | null>;
+  equippedSignature: string | null;
+  deckList: string[];
 }
 
 export function useCharacterManager() {
   const [gold, setGold] = useState(5000);
   const [selectedCharId, setSelectedCharId] = useState<number | null>(null);
+  
+  // State สำหรับ Drag & Drop (เพิ่มใหม่)
+  const [draggedItem, setDraggedItem] = useState<any>(null);
+
   const [globalDeck, setGlobalDeck] = useState<string[]>([
-        'atk-001', 'iron-1', 'atk-001', 'iron-1', 'atk-001', // 5 ใบเริ่มต้น
-    ]);
+    'atk-001', 'iron-1', 'atk-001', 'iron-1', 'atk-001',
+  ]);
+
+  // 1. Fetch Data จาก API จริง
+  const [characters, setCharacters] = useState<Character[]>([]);
   
-  // Init State
-  const [myChars, setMyChars] = useState<CharacterState[]>(charactersData.map(c => ({
-      ...c,
-      equippedCards: [],
-      equippedItems: [],
-      equippedGear: { Head: null, Body: null, Arms: null, Legs: null, Accessory: null },
-      equippedSignature: null,
-      deckList: ['atk-001', 'iron-1', 'atk-001', 'iron-1', 'atk-001'], // 👈 5 ใบเริ่มต้น
-  })));
+  useEffect(() => {
+    const fetchChars = async () => {
+      try {
+        const res = await fetch('/api/characters/skillCard'); // ✅ เรียก API ใหม่
+        if (!res.ok) throw new Error('Network response was not ok');
+        const data = await res.json();
+        setCharacters(data);
+        
+        // ถ้ายังไม่ได้เลือกตัวละคร ให้เลือกตัวแรกอัตโนมัติ
+        if (data.length > 0 && !selectedCharId) {
+             // setSelectedCharId(data[0].id); // (Optional: ถ้าอยากให้เลือกเลย)
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchChars();
+  }, []);
+
+  // 2. Init State (แปลงข้อมูลจาก DB -> Frontend State)
+  const [myChars, setMyChars] = useState<CharacterState[]>([]);
   
+  useEffect(() => {
+    if (characters.length > 0) {
+      const initializedChars = characters.map(c => ({
+        ...c,
+        // ✅ MAP DB FIELD: เอาค่าจาก DB มาใส่ State
+        equippedCards: c.equipedSkillCard || [], 
+        
+        // Mock Data ส่วนอื่นๆ (เพราะ DB ยังไม่ได้เก็บ)
+        equippedItems: [],
+        equippedGear: { Head: null, Body: null, Arms: null, Legs: null, Accessory: null },
+        equippedSignature: null,
+        deckList: ['atk-001', 'iron-1', 'atk-001', 'iron-1', 'atk-001'],
+      }));
+      setMyChars(initializedChars);
+    }
+  }, [characters]);
+
+  // Helper หาตัวละครที่เลือก
   const activeChar = myChars.find(c => c.id === selectedCharId) || myChars[0];
 
-  const addToDeck = (cardId: string) => {
-        if (globalDeck.length >= 30) {
-            alert("Deck เต็มแล้ว! (สูงสุด 30 ใบ)");
+  // Helper Update State ภายใน
+  const updateCharState = (updates: Partial<CharacterState>) => {
+    if (!activeChar) return;
+    setMyChars(prev => prev.map(c => 
+      c.id === activeChar.id ? { ...c, ...updates } : c
+    ));
+  };
+
+  // -----------------------------------------------------------
+  // ✅ LOGIC จัดการ Skill Card (Auto-Save + Optimistic UI)
+  // -----------------------------------------------------------
+  const toggleEquipCard = async (cardId: string) => {
+    if (!activeChar) return;
+
+    // 1. คำนวณ Logic (เหมือนเดิม)
+    let newEquipped = [...activeChar.equippedCards];
+    
+    if (newEquipped.includes(cardId)) {
+        // มีอยู่แล้ว -> เอาออก
+        newEquipped = newEquipped.filter(id => id !== cardId);
+    } else {
+        // ยังไม่มี -> ใส่เพิ่ม (Max 2)
+        if (newEquipped.length < 2) {
+            newEquipped.push(cardId);
+        } else {
+            alert("ช่องสวมใส่การ์ดเต็มแล้ว!");
             return;
         }
-        setGlobalDeck(prev => [...prev, cardId]);
-    };
-
-    //  ถอดการ์ดออกจาก Deck (ลบออก 1 ใบเท่านั้น)
-    const removeFromDeck = (cardId: string) => {
-        const indexToRemove = globalDeck.indexOf(cardId);
-        if (indexToRemove !== -1) {
-            const newDeck = [...globalDeck];
-            newDeck.splice(indexToRemove, 1);
-            setGlobalDeck(newDeck);
-        }
-    };
-
-const removeCard = (cardId: string) => {
-    if (!activeChar) return;
-    // ใช้ filter กรองเอาการ์ดใบที่ต้องการออก
-    const newEquipped = activeChar.equippedCards.filter(id => id !== cardId);
-    updateCharState({ equippedCards: newEquipped });
-};
-
-    // Logic อัปเกรดสเตตัส (ใช้เงิน)
-  const handleUpgrade = (statKey: keyof Character['stats']) => {
-      if (!activeChar) return;
-      if (gold < 200) {
-          alert("เงินไม่พอ! (Need 200G)");
-          return;
-      }
-      
-      setGold(prev => prev - 200); // หักเงิน
-      
-      const newStats = { ...activeChar.stats };
-      newStats[statKey] += 5; // เพิ่ม Stat ทีละ 5
-      
-      updateCharState({ stats: newStats });
-  };
-
-
-
-
-  // Logic ใส่/ถอด การ์ด (Max 2)
-const toggleEquipCard = (cardId: string) => {
-    if (!activeChar) return;
-    
-    // 1. ถ้าใส่อยู่แล้ว (includes) ให้ถอดออก
-    if (activeChar.equippedCards.includes(cardId)) {
-        removeCard(cardId);
-    } else {
-        // 2. ถ้ายังว่างอยู่ (ช่อง < 2) ให้ใส่เพิ่ม
-        if (activeChar.equippedCards.length < 2) {
-            const newEquipped = [...activeChar.equippedCards, cardId];
-            updateCharState({ equippedCards: newEquipped });
-        } else {
-            // 3. ถ้าเต็มแล้ว ให้ Alert หรือจะเขียน Logic สลับก็ได้
-            alert("ช่องสวมใส่การ์ดเต็มแล้ว!");
-        }
     }
-};
 
-  // ✅ 1. Logic สวมใส่ ITEM (Max 5)
-  const toggleEquipItem = (itemId: string) => {
-      if (!activeChar) return;
-      const current = activeChar.equippedItems;
-      let newItems = [...current];
+    // 2. ✅ Optimistic Update: อัปเดตหน้าจอทันที
+    updateCharState({ equippedCards: newEquipped });
 
-      if (current.includes(itemId)) {
-          newItems = newItems.filter(id => id !== itemId); // ถอด
-      } else {
-          if (newItems.length < 5) newItems.push(itemId); // ใส่
-          else alert("พกได้สูงสุด 5 ชิ้น!");
+    // 3. ✅ Background Auto-Save: ยิง API
+    try {
+        await fetch('/api/characters/skillCard', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                characterId: activeChar.id,
+                cardIds: newEquipped
+            })
+        });
+        console.log("Auto-saved skills for", activeChar.name);
+    } catch (error) {
+        console.error("Auto-save failed:", error);
+        // (Optional) ถ้าพังจริงๆ อาจจะ Rollback State กลับตรงนี้
+    }
+  };
+
+  const removeCard = (cardId: string) => {
+      // เรียกใช้ toggleEquipCard ได้เลย เพราะมันมี logic การเอาออกให้อยู่แล้ว
+      // หรือจะเขียนแยกเพื่อความชัดเจนก็ได้ แต่วิธีนี้ประหยัดโค้ดกว่า
+      if (activeChar?.equippedCards.includes(cardId)) {
+          toggleEquipCard(cardId);
       }
-      
-      updateCharState({ equippedItems: newItems });
   };
 
-  // ✅ 2. Logic สวมใส่ GEAR (ตาม Slot)
+  // ✅ Logic สำหรับ Drag & Drop Card ลง Slot
+  const handleDropCard = (e: React.DragEvent, slotIndex: number) => {
+    e.preventDefault();
+    if (!draggedItem || draggedItem.dragType !== 'CARD' || !activeChar) return;
+
+    // ถ้าการ์ดนี้ใส่อยู่แล้ว ไม่ต้องทำอะไร
+    if (activeChar.equippedCards.includes(draggedItem.id)) return;
+
+    // สวมใส่การ์ด (Trigger Auto-save)
+    toggleEquipCard(draggedItem.id); 
+    setDraggedItem(null); // เคลียร์ของที่ลากมา
+  };
+
+  // -----------------------------------------------------------
+  // Logic อื่นๆ (Items, Gear, Deck, Upgrade) - คงเดิมไว้
+  // -----------------------------------------------------------
+
+  const addToDeck = (cardId: string) => {
+    if (globalDeck.length >= 30) {
+      alert("Deck เต็มแล้ว! (สูงสุด 30 ใบ)");
+      return;
+    }
+    setGlobalDeck(prev => [...prev, cardId]);
+  };
+
+  const removeFromDeck = (cardId: string) => {
+    const indexToRemove = globalDeck.indexOf(cardId);
+    if (indexToRemove !== -1) {
+      const newDeck = [...globalDeck];
+      newDeck.splice(indexToRemove, 1);
+      setGlobalDeck(newDeck);
+    }
+  };
+
+  const handleUpgrade = (statKey: keyof Character['stats']) => {
+    if (!activeChar) return;
+    if (gold < 200) {
+      alert("เงินไม่พอ! (Need 200G)");
+      return;
+    }
+    setGold(prev => prev - 200);
+    const newStats = { ...activeChar.stats };
+    newStats[statKey] += 5;
+    updateCharState({ stats: newStats });
+  };
+
+  const toggleEquipItem = (itemId: string) => {
+    if (!activeChar) return;
+    const current = activeChar.equippedItems;
+    let newItems = [...current];
+
+    if (current.includes(itemId)) {
+      newItems = newItems.filter(id => id !== itemId);
+    } else {
+      if (newItems.length < 5) newItems.push(itemId);
+      else alert("พกได้สูงสุด 5 ชิ้น!");
+    }
+    updateCharState({ equippedItems: newItems });
+  };
+
   const equipGear = (gear: Equipment) => {
-      if (!activeChar) return;
-      const newGear = { ...activeChar.equippedGear, [gear.type]: gear.id };
-      updateCharState({ equippedGear: newGear });
-  };
-
-  // ✅ 3. Logic สวมใส่ SIGNATURE (Max 1)
-  const equipSignature = (sigId: string) => {
-      if (!activeChar) return;
-      // ถ้ากดตัวเดิมให้ถอดออก, ถ้าตัวใหม่ให้สวมแทนเลย
-      const newSig = activeChar.equippedSignature === sigId ? null : sigId;
-      updateCharState({ equippedSignature: newSig });
-  };
-
-  // Helper เพื่ออัปเดต State
-  const updateCharState = (updates: Partial<CharacterState>) => {
-        const targetId = activeChar!.id;
-      setMyChars(prev => {
-      
-          const newState = prev.map(c => {
-              // เปรียบเทียบ ID ว่าตรงไหม (แปลงเป็น String ทั้งคู่เพื่อความชัวร์)
-              if (c.id === targetId) { 
-                return { ...c, ...updates };
-            }
-              return c;
-          });
-
-          
-          return newState;
-      });
+    if (!activeChar) return;
+    const newGear = { ...activeChar.equippedGear, [gear.type]: gear.id };
+    updateCharState({ equippedGear: newGear });
   };
 
   const unequipGear = (slot: EquipmentType) => {
-      if (!activeChar) return;
-      const newGear = { ...activeChar.equippedGear, [slot]: null };
-      updateCharState({ equippedGear: newGear });
+    if (!activeChar) return;
+    const newGear = { ...activeChar.equippedGear, [slot]: null };
+    updateCharState({ equippedGear: newGear });
   };
 
- return {
-    gold, myChars, selectedCharId, activeChar,
-    setSelectedCharId, 
-    handleUpgrade, 
+  const equipSignature = (sigId: string) => {
+    if (!activeChar) return;
+    const newSig = activeChar.equippedSignature === sigId ? null : sigId;
+    updateCharState({ equippedSignature: newSig });
+  };
+
+  return {
+    // Data & State
+    gold, 
+    myChars, 
+    selectedCharId, 
+    activeChar,
+    globalDeck,
     
-    // Cards
-    toggleEquipCard, 
- 
-    removeCard, // ✅ ใส่กลับมาให้แล้วครับ
+    // Drag & Drop State (ส่งออกไปให้หน้า UI ใช้)
+    draggedItem,
+    setDraggedItem,
+
+    // Actions
+    setSelectedCharId,
+    handleUpgrade,
     
-    // Items & Gear
-    toggleEquipItem, 
-    equipGear, 
-    unequipGear, 
+    // Card Management (Updated)
+    toggleEquipCard, // ใช้ฟังก์ชันนี้แทน handleToggleCard ได้เลย
+    removeCard,
+    handleDropCard, // ✅ เพิ่มใหม่
+
+    // Other Equipment
+    toggleEquipItem,
+    equipGear,
+    unequipGear,
     equipSignature,
 
-    // deck management
-    globalDeck,
-    addToDeck, 
+    // Deck Management
+    addToDeck,
     removeFromDeck
   };
 }

@@ -17,18 +17,20 @@ export type EffectType =
 export const EffectDebuff = [
   'DOT' ]        // Damage Over Time (เลือดลดต่อเนื่อง)
 
-export interface UltimateEffect {
+export type TargetType = 'SELF' | 'SINGLE_ENEMY' | 'ALL_ENEMIES' | 'SINGLE_ALLY' | 'TEAM_ALL';
+
+export interface EffectDeteail {
   type: EffectType;
   value: number;       // ความแรง
   duration: number;    // จำนวนเทิร์น (0 = ทันที)
-  target: 'SELF' | 'ENEMY_ALL' | 'ENEMY_SINGLE' | 'TEAM_ALL';
+  target: TargetType;
   icon?: string;       // ไอคอนสถานะ
 }
 
 export interface UltimateSkill {
   name: string;
   description: string;
-  effects: UltimateEffect[];
+  effects: EffectDeteail[];
 }
 
 // สถานะที่กำลังทำงานอยู่ (Active Status)
@@ -43,6 +45,7 @@ export interface ActiveStatus {
 export type FloatingTextType = 'DMG' | 'HEAL' | 'BLOCK' | 'BUFF' | 'DOT' | 'MISS' | 'DEBUFF' | 'BUFF';
 
 export interface FloatingTextData {
+  side: 'ENEMY' | 'PLAYER';
   id: string;
   text: string;
   type: FloatingTextType;

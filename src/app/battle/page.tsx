@@ -1,7 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useBattle } from '@/hooks/battle/useBattle';
+import EnemyField, { EnemyConfig } from '@/components/battle/EnemyField';
+import { Character } from '@/data/characters'
+import UnitCard from '@/components/UnitCard'
 
 // --- Main Component ---
 export default function BattlePage() {
@@ -27,13 +30,113 @@ export default function BattlePage() {
     skipTurn, 
     handleUltimate, 
     handleRestock,
-    cheat
+    cheat,
   } = useBattle();
 
+ 
+  
+
+  // Helper สำหรับเรียงลำดับการแสดงผลทีม (Back Row -> Front Row)
+  // เราต้องการแสดง: [Team 1 (Back)] [Team 0 (Front)] --- VS --- [Boss]
+  // ดังนั้นเราจะ map จาก array ที่ reverse แล้ว (หรือเรียงตาม logic นี้)
+  const displayTeam = [...team].reverse(); // ถ้ามี 2 ตัว: [Char2, Char1] -> Char2 อยู่ซ้ายสุด(หลัง), Char1 อยู่ขวา(หน้า)
+  const [loading, setLoading] = useState(true);
+
+  const currentEnemies: EnemyConfig[] = [
+    { 
+      id: 3, // Minion Index
+      name: "Bat Minion", 
+      avatar: "🦇", 
+      maxHp: 200, 
+      rank: 'MINION' 
+    },
+    { 
+      id: 2, // Boss Index
+      name: "Demon King", 
+      avatar: "👿", 
+      maxHp: bossMaxHp || 9999, 
+      rank: 'BOSS' 
+    }
+  ];
+
   useEffect(() => {
-    initializeGame();
+    console.log('working ');
+    const setupBattle = async () => {
+        try {
+             //  ดึงข้อมูล Deck ทั้งหมด
+            console.log('before get decks');
+            const deckRes = await fetch('/api/decks');
+            if (!deckRes.ok) throw new Error("Failed to fetch decks");
+            const decks = await deckRes.json();
+
+            const savedCharacter = localStorage.getItem('myTeam');
+
+            let myChar: Character[] = [];
+            let allSkillCards: string[] = [];
+            if (savedCharacter) {
+                try {
+                    const parsedTeam = JSON.parse(savedCharacter);
+                    
+                    // ตอนนี้ parsedTeam เป็น Array จริงๆ แล้ว เช็คได้เลย
+                    if (Array.isArray(parsedTeam) && parsedTeam.length > 0) {
+                        myChar = parsedTeam; // เอาตัวแรกในทีมมาเล่น
+
+                        parsedTeam.forEach((char, index) => {
+                            console.log(`ตัวละครคนที่ ${index + 1} (${char.name}) มีสกิล:`, char.equipedSkillCard);
+                        });
+
+                        // 3. รวมการ์ดทั้งหมดเข้าด้วยกัน (ใช้ flatMap คือวิธีที่ง่ายที่สุด)
+                        // flatMap จะดึง array ย่อยออกมาแล้วแบให้เป็น array เดียวชั้นเดียว
+                        allSkillCards = parsedTeam.flatMap(char => char.equipedSkillCard || []);
+                        
+                        // หมายเหตุ: ถ้า TypeScript บ่นว่าไม่มี flatMap ให้ใช้แบบนี้แทน:
+                        // allSkillCards = myTeam.reduce((a
+                    }
+                } catch (error) {
+                    console.error("Error parsing team data:", error);
+                }
+            }
+           
+            // เพิ่ม cardskill ลง deck
+            // สมมติใน characters.json มี field "selectedDeckId": "deck-001"
+            // ถ้าไม่มี ให้ใช้ Deck แรกสุดเป็น Default
+            
+            // สมมติว่าเราจะแก้ที่ Deck ตัวแรก (index 0)
+            const targetDeck = decks[0];
+
+            // ตรวจสอบว่ามี key 'cardIDs' อยู่ไหม ถ้าไม่มีให้เริ่มด้วย array ว่าง
+            // (หมายเหตุ: เช็คชื่อ key ดีๆ นะครับ ใน database คุณใช้ 'cards' หรือ 'cardIDs')
+            const existingCards = targetDeck.cardIDs || targetDeck.cards || []; 
+
+            // 🔥 รวมร่าง! (Deck หลัก + Skill Cards)
+            targetDeck.cardIDs = [...existingCards, ...allSkillCards];
+            
+            // (Optional) ถ้า key เดิมชื่อ cards ก็อัปเดตให้เหมือนกันกันเหนียว
+            targetDeck.cards = targetDeck.cardIDs; 
+                       
+            // ได้รายชื่อการ์ดมาแล้ว (Array of IDs)
+            const cardList = targetDeck.cardIDs // Fallback
+
+            console.log("Starting battle with deck:", targetDeck?.name, cardList);
+
+            // 4. ส่งเข้า initializeGame
+            if (myChar) {
+                initializeGame(myChar, cardList);
+            } else {
+                console.error("No character found!");
+            }
+
+        } catch (error) {
+            console.error("Setup failed:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    setupBattle();
   }, []);
 
+  console.log('team ->',team);
   if (!team || team.length === 0) {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
@@ -41,12 +144,6 @@ export default function BattlePage() {
         </div>
     );
   }
-
-  // Helper สำหรับเรียงลำดับการแสดงผลทีม (Back Row -> Front Row)
-  // เราต้องการแสดง: [Team 1 (Back)] [Team 0 (Front)] --- VS --- [Boss]
-  // ดังนั้นเราจะ map จาก array ที่ reverse แล้ว (หรือเรียงตาม logic นี้)
-  const displayTeam = [...team].reverse(); // ถ้ามี 2 ตัว: [Char2, Char1] -> Char2 อยู่ซ้ายสุด(หลัง), Char1 อยู่ขวา(หน้า)
-
   return (
     <div className="min-h-screen bg-gray-900 text-white relative overflow-hidden select-none font-sans flex flex-col">
       
@@ -69,136 +166,73 @@ export default function BattlePage() {
       <div className="flex-1 flex items-center justify-between px-8 md:px-16 lg:px-24 w-full max-w-[1600px] mx-auto pb-32">
         
         {/* === LEFT SIDE: PLAYERS === */}
-        <div className="flex items-center gap-4 md:gap-8 lg:gap-12 perspective-1000">
-            {displayTeam.map((char) => {
-                // หา index จริงๆ ใน array หลัก (เพราะเรา reverse มาแสดงผล)
-                const realIndex = team.findIndex(c => c.id === char.id);
+       <div className="flex items-center gap-4 md:gap-8 lg:gap-12 perspective-1000">
+    {displayTeam.map((char) => {
+        // คำนวณค่าต่างๆ เหมือนเดิม
+        const realIndex = team.findIndex(c => c.id === char.id);
+        const isSelected = selectedCharId === char.id;
+        const isShaking = shaking[realIndex];
+        const hp = battleState.hp[realIndex];
+        const shield = battleState.shield[realIndex];
+        const ult = battleState.ult[realIndex];
+        const maxUlt = char.stats.maxUltimate || 100;
+        const isDead = hp <= 0;
+
+        // ✅ แก้ตรงนี้: เรียกใช้ UnitCard แทน div ก้อนใหญ่
+        return (
+            <UnitCard
+                key={char.id}
+                index={realIndex}
+                // ส่งข้อมูล (Props) เข้าไป
+                name={char.name}
+                role={char.role}
+                image={char.image} // ถ้ามีรูป
                 
-                const isSelected = selectedCharId === char.id;
-                const isShaking = shaking[realIndex];
-                const hp = battleState.hp[realIndex];
-                const shield = battleState.shield[realIndex];
-                const ult = battleState.ult[realIndex];
-                const maxUlt = char.stats.maxUltimate || 100;
-                const isDead = hp <= 0;
+                // Status & Stats
+                hp={hp}
+                maxHp={char.stats.hp}
+                shield={shield}
+                ult={ult}
+                maxUlt={maxUlt}
+                isDead={isDead}
+                isSelected={isSelected}
+                isShaking={isShaking}
+                statuses={battleState.statuses[realIndex]}
+                floatingTexts={floatingTexts[realIndex]}
+                
+                // Position badge
+                position={realIndex === 0 ? 'FRONT' : 'BACK'}
 
-                return (
-                    <div key={char.id} className={`relative flex flex-col items-center transition-all duration-300 group ${isDead ? 'opacity-50 grayscale' : ''}`}>
-                         
-                         {/* Status & HP Above Head */}
-                         <div className="mb-2 flex flex-col items-center gap-1">
-                            {/* Status Icons */}
-                            <div className="flex justify-center gap-1 min-h-[20px]">
-                                {battleState.statuses[realIndex] && battleState.statuses[realIndex].map((s, i) => (
-                                    <StatusIcon key={`${s.id}-${i}`} status={s} />
-                                ))}
-                            </div>
-                            {/* HP Bar */}
-                            <div className="w-32">
-                                <HealthBar current={hp} max={char.stats.hp} shield={shield} />
-                            </div>
-                         </div>
-
-                         {/* Character Sprite */}
-                         <div 
-                           onClick={() => !isDead && selectChar(char.id)}
-                           className={`
-                             relative w-32 h-44 md:w-40 md:h-56 rounded-xl border-4 cursor-pointer transition-all duration-200
-                             flex flex-col items-center justify-center bg-gray-800 overflow-visible shadow-xl
-                             ${isSelected ? 'border-yellow-400 shadow-[0_0_25px_rgba(250,204,21,0.6)] scale-105 z-10' : 'border-gray-600 hover:border-gray-400 hover:bg-gray-700'}
-                             ${isShaking ? 'translate-x-[-10px] bg-red-900/50' : ''} 
-                           `}
-                         >
-                            {/* Role Icon Bg */}
-                            <div className="absolute inset-0 flex items-center justify-center opacity-10 text-9xl pointer-events-none">
-                                {char.role === 'Defender' ? '🛡️' : '⚔️'}
-                            </div>
-
-                            {/* Main Icon */}
-                            <div className="z-10 text-6xl mb-2 drop-shadow-2xl transform transition-transform group-hover:scale-110">
-                                {char.role === 'Defender' ? '🛡️' : '⚔️'}
-                            </div>
-                            
-                            {/* Name Tag */}
-                            <div className="z-10 font-bold text-sm bg-black/60 px-3 py-0.5 rounded-full border border-gray-600 shadow-md">
-                                {char.name}
-                            </div>
-                            
-                            {/* Position Badge (Front/Back) */}
-                            <div className="absolute -bottom-3 text-[10px] font-bold bg-gray-700 px-2 rounded text-gray-400 border border-gray-500 uppercase">
-                                {realIndex === 0 ? 'FRONT' : 'BACK'}
-                            </div>
-
-                            {/* Floating Texts */}
-                            <FloatingTextOverlay 
-                                texts={floatingTexts[realIndex]} 
-                                onComplete={(id) => handleFloatingTextComplete(realIndex, id)} 
-                            />
-                         </div>
-
-                         {/* Ultimate Bar (Below) */}
-                         <div 
-                           onClick={() => !isDead && ult >= maxUlt && handleUltimate(char.id)}
-                           className={`
-                                mt-3 w-full h-3 bg-gray-900 rounded-full border border-gray-600 relative overflow-hidden
-                                ${!isDead && ult >= maxUlt ? 'cursor-pointer ring-2 ring-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.5)]' : ''}
-                           `}
-                         >
-                            <div 
-                                className={`h-full transition-all duration-500 ${ult >= maxUlt ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 animate-pulse' : 'bg-blue-600'}`} 
-                                style={{ width: `${Math.min(100, (ult / maxUlt) * 100)}%` }}
-                            />
-                         </div>
-                    </div>
-                );
-            })}
-        </div>
+                // 🔥 จุดสำคัญ: ใส่ Wrapper Function เพื่อแก้ Error TypeScript 🔥
+                
+                // 1. ส่ง index และบอกว่าเป็น PLAYER
+                onSelect={() => selectChar(char.id)}
+                
+                // 2. ส่ง index, text, type และบอกว่าเป็น PLAYER
+                onShowFloatingText={(idx, text, type) => console.log("Floating text:", text)}
+                
+                // 3. จัดการ Ultimate
+                onUltimate={() => handleUltimate(char.id)}
+                
+                // 4. จัดการ Floating Text หายไป
+                onFloatingTextComplete={(id) => handleFloatingTextComplete(realIndex, id)}
+            />
+        );
+    })}
+</div>
 
         {/* === VS VISUAL (Optional) === */}
         {/* <div className="text-6xl font-black text-white/5 italic opacity-30 select-none">VS</div> */}
 
         {/* === RIGHT SIDE: BOSS === */}
-        <div className="flex flex-col items-center">
-            {/* Boss Stats */}
-            <div className="mb-4 flex flex-col items-center gap-2">
-                <div className="text-red-500 font-bold text-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,1)] tracking-widest">BOSS</div>
-                {/* Boss Status */}
-                <div className="flex justify-center gap-1 min-h-[20px]">
-                    {battleState.statuses[2] && battleState.statuses[2].map((s, i) => (
-                        <StatusIcon key={`${s.id}-${i}`} status={s} />
-                    ))}
-                </div>
-                <div className="w-64">
-                    <HealthBar current={battleState.hp[2]} max={bossMaxHp} shield={battleState.shield[2]} />
-                </div>
-            </div>
-
-            {/* Boss Sprite */}
-            <div className={`
-                relative w-56 h-56 md:w-64 md:h-64 
-                bg-gradient-to-br from-red-950 to-black rounded-full border-4 border-red-700 
-                flex items-center justify-center shadow-[0_0_60px_rgba(220,38,38,0.3)]
-                transition-transform duration-100
-                ${shaking[2] ? 'translate-x-[10px] translate-y-[5px]' : ''}
-            `}>
-                 <span className="text-8xl md:text-9xl filter drop-shadow-[0_0_10px_rgba(255,0,0,0.5)] animate-pulse-slow">👿</span>
-                 
-                 {/* Floating Text */}
-                 <FloatingTextOverlay 
-                    texts={floatingTexts[2]} 
-                    onComplete={(id) => handleFloatingTextComplete(2, id)} 
-                 />
-
-                 {/* Enemy Card Display (Popup) */}
-                 {enemyCardDisplay && (
-                     <div className="absolute -left-48 top-0 z-30 bg-red-950/90 border-2 border-red-500 p-4 rounded-xl w-48 shadow-[0_0_30px_rgba(255,0,0,0.5)] text-center animate-[bounce_1s_infinite]">
-                        <div className="text-4xl mb-2">{enemyCardDisplay.icon}</div>
-                        <div className="font-bold text-red-300 text-lg leading-tight">{enemyCardDisplay.name}</div>
-                        <div className="text-xs text-red-200 mt-2 font-mono bg-black/30 p-1 rounded">{enemyCardDisplay.description}</div>
-                     </div>
-                 )}
-            </div>
-        </div>
+        <EnemyField 
+             enemies={currentEnemies} 
+             battleState={battleState}
+             shaking={shaking}
+             floatingTexts={floatingTexts}
+             enemyCardDisplay={enemyCardDisplay}
+             onFloatingTextComplete={handleFloatingTextComplete}
+          />
 
       </div>
 
@@ -365,7 +399,7 @@ function StatusIcon({ status }: { status: any }) {
     return (
         <div className="relative group/tooltip">
             <div className="w-5 h-5 rounded-full bg-black/80 border border-gray-500 flex items-center justify-center text-[10px] shadow-md cursor-help">
-                {status.icon}
+                {status.icon} 
             </div>
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-[10px] rounded border border-gray-600 whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity z-50 pointer-events-none">
                 {status.type} ({status.value}) - {status.duration}t

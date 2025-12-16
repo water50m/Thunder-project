@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { ActiveStatus} from '@/data/typesEffect';
-
+import { ActiveStatus } from '@/data/typesEffect';
+import { BattleUnit } from '@/types/battles';
 
 export type BattleEntityState = {
   hp: number[];
@@ -9,87 +9,122 @@ export type BattleEntityState = {
   statuses: ActiveStatus[][];
 };
 
-export function useBattleState(initialBossHp: number) {
-  const [battleState, setBattleState] = useState<BattleEntityState>({
-    hp: [], shield: [], ult: [], statuses: [[], [], [], []]
+export interface BattleState {
+  players: BattleUnit[]; // เก็บ Hero ของเรา
+  enemies: BattleUnit[]; // เก็บ Monster
+}
+
+export function useBattleState(initialTeam: any[]) { 
+  
+  // ✅ 1. Init State
+  const [battleState, setBattleState] = useState<BattleState>(() => {
+    
+    // 1.1 แปลงข้อมูล Team (Players)
+    const initialPlayers: BattleUnit[] = initialTeam.map((char) => {
+      const maxHp = char.stats.hp || 100;
+      const maxUlt = char.stats.maxUltimate || 100;
+
+      return {
+        // --- Static ---
+        id: char.id,
+        name: char.name,
+        role: char.role,
+        image: char.image,
+        maxHp: maxHp,
+        maxUlt: maxUlt,
+
+        // --- Dynamic (ค่าเริ่มต้น) ---
+        currentHp: maxHp,      
+        shield: 0,            
+        currentUlt: 0,        
+        isDead: false,        
+        statuses: []          
+      };
+    });
+
+    // 1.2 สร้างข้อมูล Enemy (Boss)
+    const initialEnemies: BattleUnit[] = [
+      {
+        id: 'boss_01',
+        name: 'The Dark Lord',
+        role: 'Boss',
+        image: '/assets/boss.png',
+        maxHp: 1500,
+        maxUlt: 150,
+        // --- Dynamic ---
+        currentHp: 1500,
+        shield: 0,
+        currentUlt: 0,
+        isDead: false,
+        statuses: []
+      }
+    ];
+
+    return {
+      players: initialPlayers,
+      enemies: initialEnemies
+    };
   });
 
+  // ✅ 2. Process Turn Logic
   const processTurnTick = useCallback((
-    onEvent: (targetIdx: number, value: number, type: 'DOT' | 'HEAL') => void
+    onEvent: (side: 'PLAYER' | 'ENEMY', index: number, value: number, type: 'DOT' | 'HEAL') => void
   ) => {
-    setBattleState(prev => {
-      const newHp = [...prev.hp];
-      const newStatuses = prev.statuses.map((charStatuses, idx) => {
-        const nextStatuses: ActiveStatus[] = [];
+    
+    setBattleState((prev) => { 
+        
+        // ฟังก์ชันย่อย
+        const processUnit = (unit: BattleUnit, side: 'PLAYER' | 'ENEMY', idx: number): BattleUnit => {
+            if (unit.isDead) return unit;
 
-        charStatuses.forEach(s => {
-          // 1. จัดการ DOT (ลดเลือด)
-          if (s.type === 'DOT') {
-            newHp[idx] = Math.max(0, newHp[idx] - s.value);
-            onEvent(idx, s.value, 'DOT'); // แจ้ง UI
-          }
-          
-          // 2. จัดการ HOT (เพิ่มเลือด)
-          else if (s.type === 'HOT') {
-            const maxHp = idx < 2 ? 100 : (idx === 2 ? initialBossHp : 300); // (ตัวอย่าง Logic MaxHP)
-            const healVal = Math.min(maxHp - newHp[idx], s.value);
-            if (healVal > 0) {
-                newHp[idx] += healVal;
-                onEvent(idx, healVal, 'HEAL'); // แจ้ง UI
-            }
-          }
+            let newHp = unit.currentHp; 
+            const nextStatuses: ActiveStatus[] = [];
 
-          // 3. ลด Duration (ถ้าเหลือ > 1 ให้เก็บไว้ต่อ)
-          if (s.duration > 1) {
-            nextStatuses.push({ ...s, duration: s.duration - 1 });
-          }
-        });
+            unit.statuses.forEach((s) => { 
+                // 1. DOT
+                if (s.type === 'DOT') {
+                    newHp = Math.max(0, newHp - s.value);
+                    onEvent(side, idx, s.value, 'DOT');
+                } 
+                // 2. HOT
+                else if (s.type === 'HOT') {
+                    const healVal = Math.min(unit.maxHp - newHp, s.value);
+                    if (healVal > 0) {
+                        newHp += healVal;
+                        onEvent(side, idx, healVal, 'HEAL');
+                    }
+                }
 
-        return nextStatuses;
-      });
+                // 3. ลด Duration
+                if (s.duration > 1) {
+                    nextStatuses.push({ ...s, duration: s.duration - 1 });
+                }
+            });
 
-      return { ...prev, hp: newHp, statuses: newStatuses };
+            return { 
+                ...unit, 
+                currentHp: newHp,
+                statuses: nextStatuses,
+                isDead: newHp === 0 
+            };
+        };
+
+        const newPlayers = prev.players.map((p, i) => processUnit(p, 'PLAYER', i));
+        const newEnemies = prev.enemies.map((e, i) => processUnit(e, 'ENEMY', i));
+
+        return { 
+            ...prev, 
+            players: newPlayers, 
+            enemies: newEnemies 
+        };
     });
-  }, [initialBossHp]); // dependency อาจต้องเพิ่มตาม logic maxHp
+  }, []); // End useCallback
 
-  // Helper สำหรับการ Reset หรือ Init ค่า
-  const initBattleState = useCallback((teamStats: any[], bossHp: number) => {
-    setBattleState({
-      hp: [teamStats[0].stats.hp, teamStats[1].stats.hp, bossHp, 300],
-      shield: [0, 0, 0, 0],
-      ult: [0, 0, 0, 0],
-      statuses: [[], [], [], []],
-    });
-  }, []);
-
-  // Generic Function สำหรับปรับ HP (ใช้ได้ทั้ง Heal และ DMG)
-  const modifyHp = useCallback((targetIdx: number, value: number, isHeal: boolean, maxHp?: number) => {
-    setBattleState(prev => {
-      const newHp = [...prev.hp];
-      if (isHeal) {
-        newHp[targetIdx] = Math.min((maxHp || 9999), newHp[targetIdx] + value);
-      } else {
-        newHp[targetIdx] = Math.max(0, newHp[targetIdx] - value);
-      }
-      return { ...prev, hp: newHp };
-    });
-  }, []);
-
-  // Generic Function สำหรับปรับ Shield
-  const modifyShield = useCallback((targetIdx: number, value: number) => {
-    setBattleState(prev => {
-      const newShield = [...prev.shield];
-      newShield[targetIdx] = Math.max(0, newShield[targetIdx] + value);
-      return { ...prev, shield: newShield };
-    });
-  }, []);
-
-  return {
-    battleState,
-    setBattleState, // Export เผื่อกรณี Edge case ที่ต้องแก้ raw state
-    initBattleState,
-    modifyHp,
-    modifyShield,
-    processTurnTick
+  // ✅ 3. Return ค่าออกไปใช้งาน
+  return { 
+    battleState, 
+    setBattleState, 
+    processTurnTick 
   };
-}
+
+} // End Function

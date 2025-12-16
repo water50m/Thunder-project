@@ -1,5 +1,4 @@
-import React from 'react';
-import { AVAILABLE_CARDS } from '@/data/cards'; 
+import { CARD_POOL } from '@/data/cards'; 
 
 interface Props {
     deckList: string[];
@@ -18,12 +17,12 @@ export default function DeckManagementPanel({ deckList, equippedIds, onAddToDeck
     }, {} as Record<string, number>);
 
     // 2. Pool ที่แสดง: ใน Global Deck เราแสดงการ์ดทั้งหมดที่มี
-    const filteredPool = AVAILABLE_CARDS; 
+    const filteredPool = CARD_POOL; 
     const MAX_DECK_SIZE = 30;
 
     // Helper: คำนวณค่าเฉลี่ย Cost (Logic เดิม)
     const totalCost = deckList.reduce((sum, id) => {
-        const card = AVAILABLE_CARDS.find(c => c.id === id);
+        const card = CARD_POOL.find(c => c.id === id);
         return sum + (card?.cost || 0);
     }, 0);
     const avgCost = deckList.length > 0 ? (totalCost / deckList.length).toFixed(1) : '0.0';
@@ -80,7 +79,7 @@ export default function DeckManagementPanel({ deckList, equippedIds, onAddToDeck
                         {Object.keys(cardCounts)
                             .sort()
                             .map(id => {
-                                const card = AVAILABLE_CARDS.find(c => c.id === id);
+                                const card = CARD_POOL.find(c => c.id === id);
                                 if (!card) return null;
                                 const count = cardCounts[id];
                                 return (

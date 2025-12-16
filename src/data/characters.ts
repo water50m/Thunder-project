@@ -4,7 +4,7 @@ import { UltimateSkill } from './typesEffect'; // Import type มาใช้
 export type Character = {
   id: number;
   name: string;
-  role: 'Attacker' | 'Defender' | 'Support' | 'Balanced';
+  role: 'Attacker' | 'Defender' | 'Support' | 'Balanced' | 'Boss';
   description: string;
   avatar: string;
   stats: {
@@ -17,6 +17,7 @@ export type Character = {
   };
   color: string;
   ultimate: UltimateSkill; 
+  equipedSkillCard?: string[]; // เพิ่มฟิลด์นี้ (optional)
 };
 
 export const charactersData: Character[] = [
@@ -27,8 +28,8 @@ export const charactersData: Character[] = [
       name: "Inferno",
       description: "เผาผลาญศัตรูทั้งหมด (30 Dmg/3 Turn)",
       effects: [
-        { type: 'INSTANT_DMG', value: 80, duration: 0, target: 'ENEMY_ALL' },
-        { type: 'DOT', value: 30, duration: 3, target: 'ENEMY_ALL', icon: '🔥' }
+        { type: 'INSTANT_DMG', value: 80, duration: 0, target: 'ALL_ENEMIES' },
+        { type: 'DOT', value: 30, duration: 3, target: 'ALL_ENEMIES', icon: '🔥' }
       ]
     }
   },
@@ -63,7 +64,7 @@ export const charactersData: Character[] = [
       name: "Strike Command",
       description: "โจมตีรุนแรงใส่บอส",
       effects: [
-        { type: 'INSTANT_DMG', value: 200, duration: 0, target: 'ENEMY_SINGLE' },
+        { type: 'INSTANT_DMG', value: 200, duration: 0, target: 'SINGLE_ENEMY' },
         { type: 'BUFF_POWER', value: 20, duration: 2, target: 'SELF', icon: '💪' }
       ]
     }

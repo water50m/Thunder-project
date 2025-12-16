@@ -1,5 +1,5 @@
 import { Character} from '@/data/characters';
-import { ActiveStatus, UltimateEffect} from '@/data/typesEffect';
+import { ActiveStatus, EffectDeteail} from '@/data/typesEffect';
 import { calculateDamage } from '@/utils/battleLogic';
 
 // Structure สำหรับสิ่งที่ต้องส่งเข้าไปคำนวณ
@@ -22,7 +22,7 @@ interface ExecutionResult {
 }
 
 export function executeEffects(
-  effects: UltimateEffect[],
+  effects: EffectDeteail[],
   context: ExecuteContext
 ): ExecutionResult {
   
@@ -44,10 +44,10 @@ export function executeEffects(
     } else if (effect.target === 'TEAM_ALL') {
         if (newHp[0] > 0) targetIndices.push(0);
         if (newHp[1] > 0) targetIndices.push(1);
-    } else if (effect.target === 'ENEMY_SINGLE') {
+    } else if (effect.target === 'SINGLE_ENEMY') {
         const target = (newHp[2] > 0) ? 2 : 3; 
         targetIndices = [target];
-    } else if (effect.target === 'ENEMY_ALL') {
+    } else if (effect.target === 'ALL_ENEMIES') {
         if (newHp[2] > 0) targetIndices.push(2);
         // if (newHp[3] > 0) targetIndices.push(3);
     }

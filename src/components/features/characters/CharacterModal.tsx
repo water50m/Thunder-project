@@ -179,6 +179,7 @@ export default function CharacterModal({
             {/* ================= COL 3: CARDS & STATS (Middle-Right) ================= */}
                 <CardManagementPanel 
                 charId={char.id}
+                characterName={char.name}
                 equippedIds={char.equippedCards}
                 draggedItem={draggedItem}
                 onToggleCard={onToggleCard}

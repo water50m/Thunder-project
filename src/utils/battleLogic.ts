@@ -1,6 +1,7 @@
 import { Character } from '@/data/characters';
 import { Card as CardType } from '@/data/cards';
 import { ActiveStatus } from '@/data/typesEffect';
+import { CardBonus } from '@/utils/cardLogic';
 
 // --- Types สำหรับ Return Value ---
 interface DamageResult {
@@ -65,29 +66,29 @@ export function calculateCardBonus(
   actor: Character, 
   card: CardType, 
   activeStatuses: ActiveStatus[]
-): number {
-  let bonus = 0;
-
+): CardBonus {
+  let bonusDmg = 0;
+  let bonusBlock = 0;
   // วนลูปเช็คสถานะที่มีผลต่อการโจมตี
   activeStatuses.forEach(status => {
     // ตัวอย่าง Logic:
     // ถ้ามีการ์ดประเภท Attack และมีสถานะ Strength -> เพิ่มดาเมจ
     if (card.type === 'Attack') {
       if (status.type === 'STRENGTH') {
-        bonus += status.value;
+        bonusDmg += status.value;
       }
       if (status.type === 'WEAK') {
-        bonus -= status.value;
+        bonusDmg -= status.value;
       }
     }
 
     // ถ้ามีการ์ด Defend และมีสถานะ Fortify -> เพิ่มเกราะ
     if (card.type === 'Defend' && status.type === 'FORTIFY') {
-      bonus += status.value;
+      bonusBlock += status.value;
     }
   });
 
-  return bonus;
+  return { damage: bonusDmg, block: bonusBlock };
 }
 
 /**
