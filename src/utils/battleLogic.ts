@@ -2,6 +2,7 @@ import { Character } from '@/data/characters';
 import { Card as CardType } from '@/data/cards';
 import { ActiveStatus } from '@/data/typesEffect';
 import { CardBonus } from '@/utils/cardLogic';
+import { BattleUnit } from '@/types/battles';
 
 // --- Types สำหรับ Return Value ---
 interface DamageResult {
@@ -63,26 +64,33 @@ export function calculateDamage(
  * เช่น: ถ้ามี Buff 'STRENGTH' ให้เพิ่ม Attack +3
  */
 export function calculateCardBonus(
-  actor: Character, 
+  actor: BattleUnit, // ✅ เปลี่ยนจาก Character เป็น BattleUnit
   card: CardType, 
   activeStatuses: ActiveStatus[]
 ): CardBonus {
+  
   let bonusDmg = 0;
   let bonusBlock = 0;
-  // วนลูปเช็คสถานะที่มีผลต่อการโจมตี
+
+  // --- 1. ใช้ actor เช็ค Passive Skill (ตัวอย่าง) ---
+  if (actor.character.name === 'Berserker' && actor.currentHp < actor.maxHp * 0.3) {
+      // ถ้าเป็น Berserker และเลือดน้อยกว่า 30% -> ตีแรงขึ้น 5
+      if (card.type === 'Attack') bonusDmg += 5;
+  }
+
+  // --- 2. เช็ค Status (Logic เดิม) ---
   activeStatuses.forEach(status => {
-    // ตัวอย่าง Logic:
-    // ถ้ามีการ์ดประเภท Attack และมีสถานะ Strength -> เพิ่มดาเมจ
     if (card.type === 'Attack') {
       if (status.type === 'STRENGTH') {
         bonusDmg += status.value;
       }
       if (status.type === 'WEAK') {
+        // ตัวอย่าง: ถ้า Weak ลดดาเมจลง 25% ของ ATK ตัวละคร
+        // bonusDmg -= Math.floor(actor.atk * 0.25); 
         bonusDmg -= status.value;
       }
     }
 
-    // ถ้ามีการ์ด Defend และมีสถานะ Fortify -> เพิ่มเกราะ
     if (card.type === 'Defend' && status.type === 'FORTIFY') {
       bonusBlock += status.value;
     }
@@ -90,7 +98,6 @@ export function calculateCardBonus(
 
   return { damage: bonusDmg, block: bonusBlock };
 }
-
 /**
  * คำนวณการเพิ่มเกจไม้ตาย (Ultimate Charge)
  * ไม่ให้เกินค่า Max

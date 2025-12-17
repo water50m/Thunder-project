@@ -3,6 +3,8 @@ import { TargetType } from '@/data/typesEffect'
 
 export type CardType = 'Attack' | 'Defend' | 'Heal' | 'Special'  ;
 
+export type Effect = 'Pierce' | 'Drain' | 'AoE' | 'None' | 'ShieldBased' | 'ShieldExplode' | 'BurnDetonate' | 'GroupHealDamage' | 'CleanseHeal' | 'ApplyStun' | 'ApplyDot' | 'ApplyRegen' | 'ShieldBreaker' | 'ShieldSteal' ;
+
 export interface Card {
   id: string;
   name: string;
@@ -12,7 +14,7 @@ export interface Card {
   cost: number;
   description: string;
   icon: string;
-  effect?: 'Pierce' | 'Drain' | 'AoE' | 'None' | 'ShieldBased' | 'ShieldExplode' | 'BurnDetonate' | 'GroupHealDamage' | 'CleanseHeal' | 'ApplyStun' | 'ApplyDot' | 'ApplyRegen';  
+  effect?: Effect;
   ultimateCharge: number;
   exclusiveTo?: number;
   duration?: number; // สำหรับการ์ดที่มีสถานะต่อเนื่อง (เช่น Burn, Regen)
@@ -149,7 +151,67 @@ export const EXTRA_CARDS: Card[] = [
 ];
 
 // 🔥 แล้วค่อยเอามารวมกันตรงนี้
-export const AVAILABLE_CARDS: Card[] = [
+export const AVAILABLE_CARDS_PLAYER: Card[] = [
   ...CARD_POOL,
   ...EXTRA_CARDS
 ]
+
+export const DEMON_KING_CARDS: Card[] = [
+  // 1. ท่าโจมตีปกติ: ฟันด้วยดาบความมืด (เน้นแรงเป้าเดี่ยว)
+  {
+    id: 'dk-slash',
+    name: 'Dark Cleave',
+    type: 'Attack',
+    targetType: 'SINGLE_ENEMY', // เล็งผู้เล่น 1 คน
+    value: 25, // แรงกว่าปกติ
+    cost: 0,
+    description: 'ฟันศัตรูอย่างรุนแรงด้วยพลังมืด',
+    icon: '⚔️',
+    ultimateCharge: 10,
+    effect: 'None'
+  },
+
+  // 2. ท่าหมู่: แผ่นดินไหว (โจมตีทุกคน)
+  {
+    id: 'dk-aoe',
+    name: 'Abyssal Quake',
+    type: 'Attack',
+    targetType: 'ALL_ENEMIES', // เล็งผู้เล่นทุกคน
+    value: 15, // ดาเมจกระจาย
+    cost: 0,
+    description: 'เรียกพลังจากใต้โลกโจมตีศัตรูทั้งหมด',
+    icon: '🌋',
+    ultimateCharge: 15,
+    effect: 'AoE' 
+  },
+
+  // 3. ท่าดีบัฟ: คำสาป (ทำให้ผู้เล่นอ่อนแอ)
+  {
+    id: 'dk-curse',
+    name: 'Terror Gaze',
+    type: 'Special',
+    targetType: 'SINGLE_ENEMY',
+    value: 5, // ดาเมจนิดหน่อย
+    cost: 0,
+    description: 'จ้องมองด้วยสายตาอาฆาต ทำให้ติดสถานะอ่อนแอ',
+    icon: '👁️',
+    ultimateCharge: 10,
+    effect: 'ApplyDot', // หรือ effect ลด Attack ถ้ามี
+    duration: 2
+  },
+
+  // 4. ท่าป้องกัน: เกราะเหล็กไหล
+  {
+    id: 'dk-guard',
+    name: 'Demon Skin',
+    type: 'Defend',
+    targetType: 'SELF', // บัฟตัวเอง
+    value: 40, // เกราะหนามาก
+    cost: 0,
+    description: 'สร้างเกราะป้องกันที่แข็งแกร่ง',
+    icon: '🛡️',
+    ultimateCharge: 10,
+    effect: 'ShieldBased'
+  }
+];
+

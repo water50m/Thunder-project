@@ -13,10 +13,10 @@ export interface UnitCardProps {
   position: 'FRONT' | 'BACK';
 
   // Stats & Status
-  hp: number;
+  currentHp: number;
   maxHp: number;
   shield: number;
-  ult: number;
+  currentUlt: number;
   maxUlt: number;
   isDead: boolean;
   
@@ -31,10 +31,11 @@ export interface UnitCardProps {
   // Event Handlers (Functions)
   onSelect: (index: number) => void;
   onUltimate: () => void;
-  onFloatingTextComplete: (id: number) => void;
+  onFloatingTextComplete: (id: string) => void;
   
   // Optional: ถ้าต้องการส่ง event แสดง text จากใน card
   onShowFloatingText?: (index: number, text: string, type: any) => void; 
+  
 }
 
 export const UnitCard: React.FC<UnitCardProps> = ({
@@ -42,10 +43,10 @@ export const UnitCard: React.FC<UnitCardProps> = ({
   name,
   role,
   position,
-  hp,
+  currentHp,
   maxHp,
   shield,
-  ult,
+  currentUlt,
   maxUlt,
   isDead,
   isSelected,
@@ -81,7 +82,7 @@ export const UnitCard: React.FC<UnitCardProps> = ({
           {/* <HealthBar current={hp} max={maxHp} shield={shield} /> */}
           {/* Placeholder HealthBar ในกรณีที่ยังไม่ได้ import */}
           <div className="relative w-full h-4 bg-gray-900 rounded border border-gray-600 overflow-hidden">
-             <div className="h-full bg-red-600 transition-all" style={{width: `${(hp/maxHp)*100}%`}}></div>
+             <div className="h-full bg-red-600 transition-all" style={{width: `${(currentHp/maxHp)*100}%`}}></div>
              {shield > 0 && <div className="absolute top-0 h-full bg-blue-400/50" style={{width: `${(shield/maxHp)*100}%`}}></div>}
           </div>
         </div>
@@ -127,15 +128,15 @@ export const UnitCard: React.FC<UnitCardProps> = ({
 
       {/* --- ส่วนล่าง: Ultimate Bar --- */}
       <div 
-        onClick={() => !isDead && ult >= maxUlt && onUltimate()}
+        onClick={() => !isDead && currentUlt >= maxUlt && onUltimate()}
         className={`
             mt-3 w-full h-3 bg-gray-900 rounded-full border border-gray-600 relative overflow-hidden
-            ${!isDead && ult >= maxUlt ? 'cursor-pointer ring-2 ring-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.5)]' : ''}
+            ${!isDead && currentUlt >= maxUlt ? 'cursor-pointer ring-2 ring-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.5)]' : ''}
         `}
       >
         <div 
-            className={`h-full transition-all duration-500 ${ult >= maxUlt ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 animate-pulse' : 'bg-blue-600'}`} 
-            style={{ width: `${Math.min(100, (ult / maxUlt) * 100)}%` }}
+            className={`h-full transition-all duration-500 ${currentUlt >= maxUlt ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 animate-pulse' : 'bg-blue-600'}`} 
+            style={{ width: `${Math.min(100, (currentUlt / maxUlt) * 100)}%` }}
         />
       </div>
 

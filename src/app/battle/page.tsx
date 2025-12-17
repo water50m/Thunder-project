@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useBattle } from '@/hooks/battle/useBattle';
-import EnemyField, { EnemyConfig } from '@/components/battle/EnemyField';
+import EnemyField from '@/components/battle/EnemyField';
 import { Character } from '@/data/characters'
 import UnitCard from '@/components/UnitCard'
+import { BattleUnit } from '@/types/battles';
+import { enemyData } from '@/data/enemys';
 
 // --- Main Component ---
 export default function BattlePage() {
@@ -42,22 +44,24 @@ export default function BattlePage() {
   const displayTeam = [...team].reverse(); // ถ้ามี 2 ตัว: [Char2, Char1] -> Char2 อยู่ซ้ายสุด(หลัง), Char1 อยู่ขวา(หน้า)
   const [loading, setLoading] = useState(true);
 
-  const currentEnemies: EnemyConfig[] = [
-    { 
-      id: 3, // Minion Index
-      name: "Bat Minion", 
-      avatar: "🦇", 
-      maxHp: 200, 
-      rank: 'MINION' 
-    },
-    { 
-      id: 2, // Boss Index
-      name: "Demon King", 
-      avatar: "👿", 
-      maxHp: bossMaxHp || 9999, 
-      rank: 'BOSS' 
-    }
-  ];
+  const enemiesToFight = enemyData.filter(e => ['Demon King', 'Slime'].includes(e.name));
+
+  const initialEnemies: BattleUnit[] = enemiesToFight.map((config, index) => ({
+    // สร้าง ID เฉพาะกิจในสนาม (กันซ้ำเวลาเจอมอนตัวเดิมหลายตัว)
+    id: `battle-enemy-${config.id}-${index}`, 
+
+    // --- กำหนดค่าเริ่มต้น (Initialize State) ---
+    currentHp: config.stats.hp, // เลือดเต็มหลอด
+    maxHp: config.stats.hp,
+    shield: 0,
+    currentUlt: 0,
+    maxUlt: config.stats.maxUltimate || 100,
+    statuses: [],
+    isDead: false,
+
+    // --- เก็บข้อมูล Mock ไว้ใน character ---
+    character: config 
+}));
 
   useEffect(() => {
     console.log('working ');
@@ -168,53 +172,56 @@ export default function BattlePage() {
         {/* === LEFT SIDE: PLAYERS === */}
        <div className="flex items-center gap-4 md:gap-8 lg:gap-12 perspective-1000">
     {displayTeam.map((char) => {
-        // คำนวณค่าต่างๆ เหมือนเดิม
+        // 1. หา Unit ตัวจริงจาก State ก่อน (สำคัญที่สุด!)
         const realIndex = team.findIndex(c => c.id === char.id);
-        const isSelected = selectedCharId === char.id;
-        const isShaking = shaking[realIndex];
-        const hp = battleState.hp[realIndex];
-        const shield = battleState.shield[realIndex];
-        const ult = battleState.ult[realIndex];
-        const maxUlt = char.stats.maxUltimate || 100;
-        const isDead = hp <= 0;
+        const unit = battleState.players[realIndex];
 
-        // ✅ แก้ตรงนี้: เรียกใช้ UnitCard แทน div ก้อนใหญ่
+        // ⚠️ กันเหนียว: ถ้ายังโหลดไม่เสร็จ หรือหาไม่เจอ ให้ return null ไปก่อน
+        if (!unit) return null; 
+
+        // 3. UI States (พวกการแสดงผล)
+        const isSelected = selectedCharId === char.id;
+        
+        // เช็ค Shaking (ต้องดูว่า shaking เก็บเป็น array ธรรมดาหรือแยก side)
+        // สมมติว่าเก็บแบบ index ตรงตัว
+        const isShaking = shaking[realIndex]; 
+
+
         return (
             <UnitCard
                 key={char.id}
                 index={realIndex}
-                // ส่งข้อมูล (Props) เข้าไป
                 name={char.name}
                 role={char.role}
-                image={char.image} // ถ้ามีรูป
                 
-                // Status & Stats
-                hp={hp}
-                maxHp={char.stats.hp}
-                shield={shield}
-                ult={ult}
-                maxUlt={maxUlt}
-                isDead={isDead}
+                // ✅ แก้จุดที่ 1: ใส่ Stats ให้ครบ และดึงจาก unit
+                currentHp={unit.currentHp}     // 
+                maxHp={unit.maxHp}             // 
+                shield={unit.shield}           // 
+                currentUlt={unit.currentUlt}   // 
+                maxUlt={unit.maxUlt}           
+                
+                isDead={unit.isDead}           // ใช้จาก unit ชัวร์สุด
                 isSelected={isSelected}
                 isShaking={isShaking}
-                statuses={battleState.statuses[realIndex]}
-                floatingTexts={floatingTexts[realIndex]}
+
+                // ✅ แก้จุดที่ 2: Statuses ไม่ได้อยู่แยกแล้ว แต่อยู่ใน unit
+                statuses={unit.statuses} 
                 
-                // Position badge
+                // ✅ แก้จุดที่ 3: Floating Texts (ต้องเช็คว่าคุณเก็บ state นี้ยังไง)
+                // ถ้าคุณแก้ floatingTexts เป็น Array เดียวรวมกันหมดแล้ว (ตามที่แนะนำเรื่อง side)
+                // ต้อง filter เอาเฉพาะของตัวเอง:
+                floatingTexts={floatingTexts.filter(ft => ft.side === 'PLAYER' && ft.targetIndex === realIndex)}
+                
                 position={realIndex === 0 ? 'FRONT' : 'BACK'}
 
-                // 🔥 จุดสำคัญ: ใส่ Wrapper Function เพื่อแก้ Error TypeScript 🔥
-                
-                // 1. ส่ง index และบอกว่าเป็น PLAYER
+                // ... Event Handlers เดิม ใช้ได้ครับ ...
                 onSelect={() => selectChar(char.id)}
-                
-                // 2. ส่ง index, text, type และบอกว่าเป็น PLAYER
-                onShowFloatingText={(idx, text, type) => console.log("Floating text:", text)}
-                
-                // 3. จัดการ Ultimate
+                onShowFloatingText={(idx, text, type) => console.log(text)}
                 onUltimate={() => handleUltimate(char.id)}
                 
-                // 4. จัดการ Floating Text หายไป
+                // ถ้า handleFloatingTextComplete ของคุณรับแค่ (index, id) อาจต้องแก้ให้รับ side ด้วยในอนาคต
+                // แต่ตอนนี้ใช้แบบนี้ไปก่อนได้ครับ
                 onFloatingTextComplete={(id) => handleFloatingTextComplete(realIndex, id)}
             />
         );
@@ -226,7 +233,7 @@ export default function BattlePage() {
 
         {/* === RIGHT SIDE: BOSS === */}
         <EnemyField 
-             enemies={currentEnemies} 
+             enemies={initialEnemies} 
              battleState={battleState}
              shaking={shaking}
              floatingTexts={floatingTexts}

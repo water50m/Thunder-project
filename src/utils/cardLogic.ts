@@ -1,6 +1,6 @@
 import { Card as CardType } from '@/data/cards';
-import { Character } from '@/data/characters'; // ใช้ Interface จาก lib ที่เราทำ
 import { ActiveStatus, EffectType } from '@/data/typesEffect';
+import { BattleUnit } from '@/types/battles';
 
 // ✅ 1. เพิ่ม Interface นี้เพื่อให้รับค่า Bonus แบบแยกสายได้
 export interface CardBonus {
@@ -20,7 +20,7 @@ export interface CardActionResult {
 
 export function calculateCardEffect(
   card: CardType,
-  actor: Character,
+  actor: BattleUnit,
   actorShield: number,
   targetShield: number,
   targetStatuses: ActiveStatus[] = [], // Default []
@@ -36,7 +36,7 @@ export function calculateCardEffect(
   switch (card.effect) {
     case 'ShieldBased':
       // สูตร: ATK + เกราะปัจจุบัน
-      result.damage = (actor.stats.atk || 0) + actorShield + bonus.damage;
+      result.damage = (actor.character.stats.atk || 0) + actorShield + bonus.damage;
       result.textsToAdd.push({ target: -1, text: "Shield Bash!", type: 'BUFF' });
       break;
 
@@ -45,6 +45,31 @@ export function calculateCardEffect(
       result.shouldExplodeShield = true;
       result.textsToAdd.push({ target: -1, text: "Explode!", type: 'BUFF' });
       break;
+
+    case 'ShieldBreaker':
+    // ถ้าศัตรูมีเกราะ ให้ตีแรงขึ้น 2 เท่า 
+    let baseDmg = (card.value || 0) + (actor.character.stats.atk || 0);
+    
+    if (targetShield > 0) {
+        baseDmg *= 2; // คูณ 2
+        result.textsToAdd.push({ target: -2, text: "Break!", type: "DMG" });
+    }
+    
+    result.damage = baseDmg;
+    break;
+
+    case 'ShieldSteal':
+    // ขโมยเกราะ 50% ของศัตรูมาเป็นของเรา
+    const stealAmount = Math.floor(targetShield * 0.5);
+    
+    if (stealAmount > 0) {
+        result.shield = stealAmount; // เพิ่มเกราะให้เรา
+        // คุณอาจต้องเพิ่ม field พิเศษใน result เพื่อบอกให้ไปลดเกราะศัตรูด้วย (เช่น damageShield: number)
+        // หรือใช้วิธีทำ Damage เท่ากับเกราะที่ขโมย (แต่เป็น True Damage)
+        result.damage = stealAmount; 
+        result.textsToAdd.push({ target: -1, text: `Stole ${stealAmount}`, type: "BUFF" });
+    }
+    break;
 
     case 'BurnDetonate':
         let totalExplodeDmg = 0;
@@ -100,7 +125,7 @@ export function calculateCardEffect(
     // เพิ่ม Effect พิเศษอื่นๆ เช่น Pierce
     case 'Pierce':
         // คำนวณดาเมจปกติ แต่เดี๋ยว battleLogic จะจัดการเรื่องทะลุเกราะเอง หรือเราจะเพิ่ม text บอกก็ได้
-        result.damage = (card.value || 0) + (actor.stats.atk || 0) + bonus.damage;
+        result.damage = (card.value || 0) + (actor.character.stats.atk || 0) + bonus.damage;
         result.textsToAdd.push({ target: -2, text: "Pierce!", type: "DEBUFF" });
         break;
 
@@ -108,7 +133,7 @@ export function calculateCardEffect(
         
         if (card.type === 'Attack') {
             // 1. Base Calculation: (ค่าการ์ด + ATK ตัวละคร + โบนัส)
-            let dmg = (card.value || 0) + (actor.stats.atk || 0) + bonus.damage;
+            let dmg = (card.value || 0) + (actor.character.stats.atk || 0) + bonus.damage;
 
             // 2. Vulnerable Check (เช็คว่าศัตรูอ่อนแอไหม)
             const isVulnerable = targetStatuses.some(s => s.type === 'WEAK' || s.type === 'DEBUFF');
@@ -121,11 +146,11 @@ export function calculateCardEffect(
         } 
         else if (card.type === 'Heal') {
             // สูตร: ค่าการ์ด + Power
-            result.heal = (card.value || 0) + (actor.stats.power || 0);
+            result.heal = (card.value || 0) + (actor.character.stats.power || 0);
         } 
         else if (card.type === 'Defend') {
             // สูตร: ค่าการ์ด + DEF + โบนัส Block
-            result.shield = (card.value || 0) + (actor.stats.def || 0) + bonus.block;
+            result.shield = (card.value || 0) + (actor.character.stats.def || 0) + bonus.block;
         }
         break;
   }

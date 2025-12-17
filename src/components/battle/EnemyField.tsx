@@ -1,29 +1,18 @@
 import React from 'react';
 import { Card as CardType } from '@/data/cards';
-import { FloatingTextType, ActiveStatus } from '@/data/typesEffect';
+import { FloatingTextType, ActiveStatus, FloatingTextData } from '@/data/typesEffect';
+import { BattleState, BattleUnit } from '@/types/battles'
 
 // --- Types ---
 export type EnemyRank = 'MINION' | 'ELITE' | 'BOSS';
 
-export interface EnemyConfig {
-  id: number;          // Index ใน battleState (เช่น 2=Boss, 3=Minion)
-  name: string;
-  avatar: string;
-  maxHp: number;
-  rank: EnemyRank;     // เอาไว้กำหนดขนาด Z-Index
-}
-
 interface Props {
-  enemies: EnemyConfig[];          // ✅ Input: รายชื่อศัตรูที่จะให้แสดง
-  battleState: {                   // State จาก useBattle
-    hp: number[];
-    shield: number[];
-    statuses: ActiveStatus[][];
-  };
+  enemies: BattleUnit[];          // ✅ Input: รายชื่อศัตรูที่จะให้แสดง
+  battleState: BattleState;
   shaking: boolean[];              // Animation สั่น
-  floatingTexts: any[][];          // ลอยตัวเลข
+  floatingTexts: FloatingTextData[];          // ลอยตัวเลข
   enemyCardDisplay: CardType | null; // การ์ดที่ศัตรูกำลังใช้
-  onFloatingTextComplete: (charIdx: number, textId: string) => void;
+  onFloatingTextComplete: (targetIdx: number, textId: string) => void;
 }
 
 // --- Sub-Component: Health Bar (แยกออกมาให้ clean) ---
@@ -62,7 +51,6 @@ const StatusList = ({ statuses }: { statuses: ActiveStatus[] }) => (
 // --- Main Component ---
 export default function EnemyField({ 
   enemies, 
-  battleState, 
   shaking, 
   floatingTexts, 
   enemyCardDisplay,
@@ -71,72 +59,104 @@ export default function EnemyField({
 
   return (
     <div className="flex items-end justify-center gap-2 md:gap-6 perspective-1000">
-      {/* วนลูปสร้างศัตรูตาม Config ที่ส่งเข้ามา */}
-      {enemies.map((enemy) => {
-        const hp = battleState.hp[enemy.id];
+      
+      {/* ✅ ต้องใช้ index มาช่วย map ตำแหน่ง Floating Text และ Shaking */}
+      {enemies.map((enemy, index) => {
         
-        // ถ้าเลือดหมด ไม่ต้อง render (ตายแล้วหายไป)
-        // หรือถ้า hp เป็น undefined แปลว่าไม่มีตัวนี้ในระบบ
-        if (hp === undefined || hp <= 0) return null;
+        // 1. ✅ เช็คตายจาก enemy โดยตรง
+        if (enemy.isDead || enemy.currentHp <= 0) return null;
 
-        const shield = battleState.shield[enemy.id];
-        const isShaking = shaking[enemy.id];
-        const texts = floatingTexts[enemy.id];
-        const status = battleState.statuses[enemy.id];
+        // 2. ✅ ดึง Stats จาก enemy โดยตรง (เลิกใช้ battleState.xxx)
+        const hp = enemy.currentHp;
+        const shield = enemy.shield;
+        const status = enemy.statuses;
 
-        // กำหนด Style ตาม Rank (Boss ตัวใหญ่, Minion ตัวเล็ก)
-        let sizeClass = "w-24 h-24"; // Minion
-        let zIndex = "z-20";         // Minion อยู่หน้า
+        // 3. ✅ กรอง Floating Text (Logic ใหม่: Flat Array)
+        // หาเฉพาะของศัตรูตัวนี้ (Side = ENEMY, Index = index)
+        const myTexts = floatingTexts.filter(
+            ft => ft.side === 'ENEMY' && ft.targetIndex === index
+        );
+
+        // 4. ✅ Shaking (ใช้ index เพราะ shaking มักจะเป็น array ตามลำดับ)
+        const isShaking = shaking[index];
+
+        // ฟังก์ชันเลือกสีตาม Rarity
+        const getBorderColor = (rank: string = 'COMMON') => {
+            switch (rank) {
+                case 'LEGENDARY': return 'border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.6)]'; // สีทอง + เรืองแสง
+                case 'EPIC': return 'border-purple-500'; // สีม่วง
+                case 'RARE': return 'border-blue-400';   // สีฟ้า
+                default: return 'border-gray-400';       // สีเทา (Common)
+            }
+        };
+
+        // ฟังก์ชันเลือกสีตาม Rank (Boss/Leader)
+        const getRankStyle = (rank: string) => {
+            if (rank === 'BOSS') return 'scale-125 z-10'; // บอสตัวใหญ่
+            if (rank === 'LEADER') return 'ring-2 ring-yellow-200'; // หัวหน้าทีมมีวงแหวนเพิ่ม
+            return '';
+        }
+
+        // --- Style Logic (คงเดิมของคุณไว้) ---
+        let sizeClass = "w-24 h-24"; 
+        let zIndex = "z-20";        
         let borderClass = "border-2 border-red-900 rounded-full";
+
+
         
-        if (enemy.rank === 'BOSS') {
+        if (enemy.character.role === 'Boss') { // เช็ค rank ให้ชัวร์
             sizeClass = "w-56 h-56 md:w-64 md:h-64";
-            zIndex = "z-10"; // Boss อยู่หลัง
+            zIndex = "z-10"; 
             borderClass = "border-4 border-red-700 rounded-full shadow-[0_0_60px_rgba(220,38,38,0.3)]";
-        } else if (enemy.rank === 'ELITE') {
+        } else if (enemy.character.role=== 'Minion') {
             sizeClass = "w-32 h-32";
             zIndex = "z-15";
-            borderClass = "border-2 border-purple-500 rounded-xl rotate-45"; // สี่เหลี่ยมข้าวหลามตัด
+            borderClass = "border-2 border-purple-500 rounded-xl rotate-45"; 
         }
 
         return (
             <div key={enemy.id} className={`relative flex flex-col items-center ${zIndex}`}>
                 
-                {/* 1. Stats Bar (HP & Status) */}
-                <div className={`mb-2 flex flex-col items-center w-full ${enemy.rank === 'BOSS' ? 'w-64' : 'w-24'}`}>
-                    {enemy.rank === 'BOSS' && <div className="text-red-500 font-bold text-xl tracking-widest drop-shadow-md">BOSS</div>}
-                    <StatusList statuses={status} />
-                    <MiniHealthBar current={hp} max={enemy.maxHp} shield={shield} />
+                {/* 1. Stats Bar */}
+                <div className={`mb-2 flex flex-col items-center w-full ${enemy.character.role === 'Boss' ? 'w-64' : 'w-24'}`}>
+                    {enemy.character.role === 'Boss' && <div className="text-red-500 font-bold text-xl tracking-widest drop-shadow-md">BOSS</div>}
+                    
+                    {/* ✅ ส่ง status ที่ดึงมาใหม่ */}
+                    <StatusList statuses={status} /> 
+                    
+                    {/* ✅ ส่ง hp/shield ที่ดึงมาใหม่ */}
+                    <MiniHealthBar current={hp} max={enemy.maxHp} shield={shield} /> 
                 </div>
 
-                {/* 2. Character Sprite / Avatar */}
+                {/* 2. Character Sprite */}
                 <div 
                     className={`
-                        relative ${sizeClass} ${borderClass} bg-gray-800 
+                        relative ${sizeClass} ${borderClass} ${getBorderColor(enemy.character.rank)} bg-gray-800 
                         flex items-center justify-center shadow-lg
                         transition-transform duration-100
                         ${isShaking ? 'translate-x-[-5px] bg-red-900/50' : 'bg-gradient-to-br from-red-950 to-black'}
                     `}
                 >
-                    <span className={`${enemy.rank === 'BOSS' ? 'text-8xl md:text-9xl' : 'text-5xl'} filter drop-shadow-md`}>
-                        {enemy.avatar}
+                    <span className={`${enemy.character.role === 'Boss' ? 'text-8xl md:text-9xl' : 'text-5xl'} filter drop-shadow-md`}>
+                        {/* หรือ enemy.character.avatar */}
+                        {enemy.character.avatar || "👾"} 
                     </span>
 
-                    {/* Floating Text */}
-                    {texts.map((ft: any) => ( // Inline Floating Text Logic เล็กๆ
+                    {/* ✅ Floating Text (Loop จาก myTexts ที่กรองมาแล้ว) */}
+                    {myTexts.map((ft) => (
                          <div key={ft.id} 
                               className={`absolute top-0 font-bold text-2xl animate-[floatUp_1s_ease-out_forwards] pointer-events-none whitespace-nowrap
                                 ${ft.type === 'DMG' ? 'text-red-500 scale-125' : ft.type === 'HEAL' ? 'text-green-400' : 'text-blue-300'}
                               `}
-                              onAnimationEnd={() => onFloatingTextComplete(enemy.id, ft.id)}
+                              // ✅ ส่ง index และ id กลับไปลบ
+                              onAnimationEnd={() => onFloatingTextComplete(index, ft.id)}
                          >
                             {ft.text}
                          </div>
                     ))}
                     
-                    {/* 3. Enemy Action Card (แสดงเฉพาะที่ Boss หรือตัวที่กำหนด) */}
-                    {/* Logic: ถ้ามี enemyCardDisplay และตัวนี้เป็น Boss ให้โชว์ (หรือจะปรับให้โชว์ตาม id ก็ได้) */}
-                    {enemyCardDisplay && enemy.rank === 'BOSS' && (
+                    {/* 3. Action Card (Boss Only) */}
+                    {enemyCardDisplay && (enemy.character.role === 'Boss') && (
                         <div className="absolute -left-48 top-0 z-50 bg-red-950/90 border-2 border-red-500 p-3 rounded-xl w-40 text-center animate-bounce">
                              <div className="text-3xl mb-1">{enemyCardDisplay.icon}</div>
                              <div className="font-bold text-red-200 text-sm">{enemyCardDisplay.name}</div>

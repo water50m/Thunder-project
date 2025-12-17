@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { FloatingTextData, FloatingTextType } from '@/data/typesEffect';
 
 export function useBattleUI() {
-  const [floatingTexts, setFloatingTexts] = useState<FloatingTextData[][]>([[], [], [], []]);
+  const [floatingTexts, setFloatingTexts] = useState<FloatingTextData[]>([]);
   const [shaking, setShaking] = useState<boolean[]>([false, false, false, false]);
   const [log, setLog] = useState<string>("เริ่มเกม! เลือกตัวละคร + เลือกการ์ด");
   const [shakeState, setShakeState] = useState<{
@@ -13,38 +13,28 @@ export function useBattleUI() {
       enemies: []
   });
 
-  const addFloatingText = useCallback((
-      side: 'PLAYER' | 'ENEMY', 
-      index: number, 
-      text: string, 
-      type: FloatingTextType
-  ) => {
-      // 1. สร้าง Object ให้ตรงกับ Interface FloatingTextData
-      const newTextData: FloatingTextData = {
-          side: side,
-          id: Date.now().toString(), // แปลงเป็น string ตาม interface
-          text: text,
-          type: type
-      };
+    const addFloatingText = useCallback((
+        side: 'PLAYER' | 'ENEMY', 
+        index: number, 
+        text: string, 
+        type: FloatingTextType
+    ) => {
+        // 1. สร้าง Object (เพิ่ม targetIndex เข้าไป)
+        const newTextData: FloatingTextData = {
+            id: Date.now().toString() + Math.random().toString(), // กัน id ซ้ำ
+            side: side,
+            targetIndex: index, // ✅ ใส่ index ของเป้าหมายลงไป
+            text: text,
+            type: type
+        };
 
-      // 2. Logic การอัปเดต State (แยกฝั่งตาม side)
-      if (side === 'PLAYER') {
-          setFloatingTexts((prev) => {
-              const newState = [...prev];
-              // ตรวจสอบว่ามี Array ของตัวละครนี้หรือยัง ถ้ายังให้สร้างใหม่
-              if (!newState[index]) newState[index] = [];
-              
-              // เพิ่มข้อมูลใหม่เข้าไป
-              newState[index].push(newTextData);
-              return newState;
-          });
-      } else {
-          // TODO: จัดการฝั่ง ENEMY (ถ้ามี State แยก)
-          // setEnemyFloatingTexts(...) 
-          console.log("Enemy Floating Text:", newTextData);
-      }
+        // 2. Logic การอัปเดต State (รวมกันถังเดียว ไม่ต้องแยก if)
+        setFloatingTexts((prev) => {
+            // แค่เติมของใหม่ต่อท้าย Array ไปเลย ง่ายและรองรับทั้ง PLAYER/ENEMY
+            return [...prev, newTextData];
+        });
 
-  }, []);
+    }, []);
 
 
   const triggerShake = useCallback((side: 'PLAYER' | 'ENEMY', index: number) => {
@@ -95,11 +85,13 @@ export function useBattleUI() {
   }, [shaking]);
 
   const handleFloatingTextComplete = useCallback((targetIdx: number, textId: string) => {
-    setFloatingTexts(prev => {
-      const newTexts = prev.map(arr => [...arr]);
-      newTexts[targetIdx] = newTexts[targetIdx].filter(t => t.id !== textId);
-      return newTexts;
-    });
+    
+      setFloatingTexts(prev => {
+          // ✅ Logic ใหม่: "กรอง" เอาเฉพาะตัวที่ ID ไม่ตรงกับอันที่จะลบ
+          // (พูดง่ายๆ คือ เก็บตัวอื่นไว้ ลบตัวนี้ทิ้ง)
+          return prev.filter(t => t.id !== textId);
+      });
+
   }, []);
 
   return {

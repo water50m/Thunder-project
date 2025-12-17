@@ -4,7 +4,8 @@ import { UltimateSkill } from './typesEffect'; // Import type มาใช้
 export type Character = {
   id: number;
   name: string;
-  role: 'Attacker' | 'Defender' | 'Support' | 'Balanced' | 'Boss';
+  role: 'Attacker' | 'Defender' | 'Support' | 'Balanced' | 'Boss' | 'Minion';
+  rank: 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
   description: string;
   avatar: string;
   stats: {
@@ -22,7 +23,7 @@ export type Character = {
 
 export const charactersData: Character[] = [
   {
-    id: 1, name: "Blaze", role: "Attacker", description: "นักดาบเพลิง", avatar: "🔥", color: "red",
+    id: 1, name: "Blaze", role: "Attacker", description: "นักดาบเพลิง", avatar: "🔥", color: "red", rank:'COMMON',
     stats: { hp: 100, atk: 55, def: 10, cri: 25, power: 20, maxUltimate: 100 },
     ultimate: {
       name: "Inferno",
@@ -34,7 +35,7 @@ export const charactersData: Character[] = [
     }
   },
   {
-    id: 2, name: "Ironclad", role: "Defender", description: "ป้อมปราการ", avatar: "🛡️", color: "blue",
+    id: 2, name: "Ironclad", role: "Defender", description: "ป้อมปราการ", avatar: "🛡️", color: "blue", rank:'COMMON',
     stats: { hp: 250, atk: 20, def: 50, cri: 5, power: 25, maxUltimate: 100 },
     ultimate: {
       name: "Iron Wall",
@@ -46,7 +47,7 @@ export const charactersData: Character[] = [
     }
   },
   {
-    id: 3, name: "Lumina", role: "Support", description: "แสงรักษา", avatar: "✨", color: "green",
+    id: 3, name: "Lumina", role: "Support", description: "แสงรักษา", avatar: "✨", color: "green", rank:'COMMON',
     stats: { hp: 150, atk: 25, def: 20, cri: 10, power: 30, maxUltimate: 100 },
     ultimate: {
       name: "Blessing",
@@ -58,7 +59,7 @@ export const charactersData: Character[] = [
     }
   },
   {
-    id: 4, name: "Vanguard", role: "Balanced", description: "นักรบสมดุล", avatar: "⚔️", color: "purple",
+    id: 4, name: "Vanguard", role: "Balanced", description: "นักรบสมดุล", avatar: "⚔️", color: "purple", rank:'COMMON',
     stats: { hp: 180, atk: 35, def: 30, cri: 15, power: 15, maxUltimate: 100 },
     ultimate: {
       name: "Strike Command",

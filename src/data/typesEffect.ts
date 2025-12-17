@@ -13,7 +13,8 @@ export type EffectType =
   | 'CURSE_HEAL'
   | 'BUFF'
   | 'DEBUFF';    // เพิ่มเกราะต่อเนื่อง
-  
+
+
 export const EffectDebuff = [
   'DOT' ]        // Damage Over Time (เลือดลดต่อเนื่อง)
 
@@ -47,6 +48,7 @@ export type FloatingTextType = 'DMG' | 'HEAL' | 'BLOCK' | 'BUFF' | 'DOT' | 'MISS
 export interface FloatingTextData {
   side: 'ENEMY' | 'PLAYER';
   id: string;
+  targetIndex: number;
   text: string;
   type: FloatingTextType;
 }

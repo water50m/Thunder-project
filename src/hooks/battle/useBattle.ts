@@ -16,12 +16,11 @@ import { BattleUnit } from '@/types/battles';
 // Logic Utils
 import { calculateCardBonus, calculateUltCharge, calculateDamage } from '@/utils/battleLogic';
 import { calculateCardEffect } from '@/utils/cardLogic';
-import { executeEffects } from '@/utils/effectExecutor'; // ✅ Import ตัว Executor ใหม่
 
 // Card
-import { AVAILABLE_CARDS } from '@/data/cards'
+import { AVAILABLE_CARDS_PLAYER } from '@/data/cards'
 
-
+import { enemyData } from '@/data/enemys'
 type GamePhase = 'PLAYER_THINKING' | 'PLAYER_EXECUTING' | 'ENEMY_TURN' | 'PLAYER_RESTOCK' | 'GAME_WON' | 'GAME_OVER';
 
 export function useBattle() {
@@ -111,18 +110,22 @@ const initializeGame = (characterData: Character[], initialDeckIds: string[] = [
     // (แปลงจาก Character Data ให้เป็น BattleUnit สำหรับต่อสู้)
     const newPlayers: BattleUnit[] = characterData.map(c => ({
         id: c.id,
-        name: c.name,
-        role: c.role,
         
-        maxHp: c.stats.hp,
-        maxUlt: c.stats.maxUltimate || 100,
+        // ✅ ยัดข้อมูลต้นฉบับเข้าไปทั้งก้อน (แทนที่จะแตก atk, def, role ออกมา)
+        character: c, 
 
-        // Dynamic Stats
+        // Dynamic Stats (ดึงจาก c.stats มาใช้เป็นค่าเริ่มต้น)
         currentHp: c.stats.hp,
+        maxHp: c.stats.hp,      // ควรมี maxHp ที่ชั้นนี้ด้วยเพื่อความสะดวก
+        maxUlt: c.stats.maxUltimate || 100,
+        
         shield: 0,
         currentUlt: 0,
         statuses: [],
-        isDead: false
+        isDead: false,
+        
+        // ❌ ไม่ต้องมี atk, def, role, name, image ตรงนี้แล้ว 
+        // เพราะมันอยู่ใน 'character' หมดแล้ว
     }));
 
     // กรณีไม่มีข้อมูลส่งมา (Fallback Mock Data)
@@ -137,17 +140,47 @@ const initializeGame = (characterData: Character[], initialDeckIds: string[] = [
     setTeam(characterData);
 
 
+    const bossTemplate = enemyData.find(e => e.role === 'Boss') || enemyData[0];
+    const minionTemplate = enemyData.find(e => e.role === 'Minion') || enemyData[0];
+
     // --- 2. สร้างข้อมูลฝั่ง Enemies (BattleUnit) ---
     const newEnemies: BattleUnit[] = [
+        // 1. สร้าง Boss
         { 
-            id: 'boss', name: 'Demon King', role: 'Boss',
-            maxHp: 1000, currentHp: 1000, maxUlt: 100,
-            shield: 0, statuses: [], currentUlt: 0, isDead: false 
+            id: 'boss_01', 
+            
+            // ✅ 1. ยัดข้อมูลต้นฉบับเข้าไปทั้งก้อน (Role, Image, Name อยู่ในนี้หมดแล้ว)
+            character: bossTemplate,
+
+            // ✅ 2. ค่า Dynamic ที่ใช้ในการต่อสู้ (ต้องดึงออกมา)
+            currentHp: bossTemplate.stats.hp,
+            maxHp: bossTemplate.stats.hp,
+            currentUlt: 0,
+            maxUlt: bossTemplate.stats.maxUltimate,
+
+            shield: 0, 
+            statuses: [], 
+            isDead: false,
+            
+            // ❌ ไม่ต้องใส่ atk, def, role แยกแล้ว (เพราะมันอยู่ใน character.stats.atk แล้ว)
         },
+
+        // 2. สร้าง Minion
         { 
-            id: 'minion1', name: 'Slime', role: 'Minion',
-            maxHp: 200, currentHp: 200, maxUlt: 50,
-            shield: 0, statuses: [], currentUlt: 0, isDead: false 
+            id: 'minion_01',
+            
+            // ✅ ยัด Character
+            character: minionTemplate, 
+
+            // Dynamic Stats
+            currentHp: minionTemplate.stats.hp,
+            maxHp: minionTemplate.stats.hp,
+            currentUlt: 0,
+            maxUlt: minionTemplate.stats.maxUltimate,
+
+            shield: 0, 
+            statuses: [], 
+            isDead: false,
         }
     ];
 
@@ -160,7 +193,7 @@ const initializeGame = (characterData: Character[], initialDeckIds: string[] = [
         // Map IDs -> Card Objects
         deckObjects = safeDeckIds.map((id, index) => {
             // หาการ์ดต้นฉบับ
-            const found = CARD_POOL.find(c => c.id === id) || AVAILABLE_CARDS.find(c => c.id === id);
+            const found = CARD_POOL.find(c => c.id === id) || AVAILABLE_CARDS_PLAYER.find(c => c.id === id);
             
             if (found) {
                 return { 
@@ -220,7 +253,7 @@ const executePlayerAction = async () => {
     // 2. เริ่มทำงาน
     setPhase('PLAYER_EXECUTING');
     const actor = battleState.players[actorIdx]; // ดึง Object Player ตัวจริงมาใช้
-    setLog(`${actor.name} ใช้ ${card.name}`);
+    setLog(`${actor.character.name} ใช้ ${card.name}`);
 
     // --- 3. คำนวณ Logic (ทำงานกับ Local Variable ก่อน) ---
     // ✅ Copy State แบบแยกฝั่ง
@@ -237,7 +270,7 @@ const executePlayerAction = async () => {
     // Logic เลือกเป้าหมาย: ถ้ามี Minion (และไม่ใช่ท่าทะลุ) ให้ตี Minion ตัวแรกก่อน
     // (สมมติ Minion อยู่ Index 1, Boss อยู่ Index 0)
     // หรือถ้า Boss อยู่ Index 0, Minion อยู่ 1 
-    const minionIndex = nextEnemies.findIndex(e => e.name !== 'Boss' && !e.isDead); // หา Minion ที่ไม่ตาย
+    const minionIndex = nextEnemies.findIndex(e => e.character.name !== 'Boss' && !e.isDead); // หา Minion ที่ไม่ตาย
     
     if (card.targetType === 'SELF') {
         targetSide = 'PLAYER';
@@ -267,7 +300,7 @@ const executePlayerAction = async () => {
     // Charge Ultimate
     const chargeAmt = card.ultimateCharge || 10;
     const nextActor = { ...actorUnit }; // Copy เพื่อแก้ค่า
-    nextActor.ultCharge = calculateUltCharge(nextActor.ultCharge, nextActor.maxUltimate, chargeAmt);
+    nextActor.currentUlt = calculateUltCharge(nextActor.currentUlt, nextActor.maxUlt, chargeAmt);
     nextPlayers[actorIdx] = nextActor; // Save กลับ
 
     // --- APPLY EFFECTS ---
@@ -277,12 +310,12 @@ const executePlayerAction = async () => {
         // ดึงตัวเป้าหมายมาแก้
         const target = { ...getUnit(targetSide, targetIndex) };
         
-        const res = calculateDamage(target.hp, target.shield, result.damage);
+        const res = calculateDamage(target.currentHp, target.shield, result.damage);
         const dmgDealt = result.damage - (target.shield - res.shield);
         
-        target.hp = res.hp;
+        target.currentHp = res.hp;
         target.shield = res.shield;
-        if (target.hp === 0) target.isDead = true;
+        if (target.currentHp === 0) target.isDead = true;
 
         // Save Target กลับ Array
         if (targetSide === 'ENEMY') nextEnemies[targetIndex] = target;
@@ -301,7 +334,7 @@ const executePlayerAction = async () => {
     // 2. Heal Logic 💚
     if (result.heal > 0) {
         const healee = { ...nextPlayers[actorIdx] };
-        healee.hp = Math.min(healee.maxHp, healee.hp + result.heal);
+        healee.currentHp = Math.min(healee.maxHp, healee.currentHp + result.heal);
         nextPlayers[actorIdx] = healee;
         
         addFloatingText('PLAYER', actorIdx, `${result.heal}`, 'HEAL');
@@ -360,8 +393,7 @@ const executePlayerAction = async () => {
 
     // --- 5. CHECK PHASE (Win Condition) ---
     // เช็คว่าศัตรูตายหมดหรือยัง
-    const allEnemiesDead = nextEnemies.every(e => e.isDead || e.hp <= 0);
-
+    const allEnemiesDead = nextEnemies.every(e => e.isDead || e.currentHp <= 0);
     if (allEnemiesDead) {
         setPhase('GAME_WON');
         const shuffled = [...CARD_POOL].sort(() => 0.5 - Math.random()); 
@@ -384,121 +416,133 @@ const executePlayerAction = async () => {
 };
 
   // Action 2: ใช้ Ultimate
+// Action 2: ใช้ Ultimate ⚡
   const handleUltimate = async (charId: number) => {
+    // 1. Validation & Setup
     if (phase !== 'PLAYER_THINKING') return;
-    const charIndex = team.findIndex(c => c.id === charId);
-    const char = team[charIndex];
-    if (!char || !char.ultimate) return;
-    
-    // Check cost
-    if (battleState.ult[charIndex] < (char.stats.maxUltimate || 100)) return;
 
-    setPhase('PLAYER_EXECUTING'); 
-    setLog(`⚡ ${char.name} ใช้ท่าไม้ตาย: ${char.ultimate.name}!`);
-    
-    // Reset Ult Charge ทันที เพื่อ feedback UI
+    const charIndex = battleState.players.findIndex(p => p.id === charId);
+    if (charIndex === -1) return;
+
+    const playerUnit = battleState.players[charIndex];
+    const ultInfo = playerUnit.character.ultimate;
+
+    // เช็คว่ามีท่าไม้ตาย และเกจเต็มไหม
+    if (!ultInfo) return;
+    if (playerUnit.currentUlt < playerUnit.maxUlt) return;
+
+    // 2. เริ่ม Effect UI
+    setPhase('PLAYER_EXECUTING');
+    setLog(`⚡ ${playerUnit.character.name} ใช้ท่าไม้ตาย: ${ultInfo.name}!`);
+
+    // 3. Reset Ult Gauge (Visual update ทันที)
     setBattleState(prev => {
-        const newUlt = [...prev.ult]; 
-        newUlt[charIndex] = 0; 
-        addFloatingText("PLAYER", charIndex, "ULTIMATE!", "BUFF"); 
-        return { ...prev, ult: newUlt };
+        const newPlayers = [...prev.players];
+        newPlayers[charIndex] = { ...newPlayers[charIndex], currentUlt: 0 };
+        return { ...prev, players: newPlayers };
     });
     
-    await delay(800); 
+    addFloatingText("PLAYER", charIndex, "ULTIMATE!", "BUFF");
+    await delay(800); // รอ animation นิดหน่อย
 
-    // --- CALCULATION ---
-    // ดึง State ล่าสุด ณ ตอนนี้ (หลังจาก reset ult) แต่จริงๆ ใช้ battleState ก็ได้เพราะ ult ไม่เกี่ยวกับ damage
-    // แต่เพื่อความชัวร์เรื่อง HP ล่าสุด เรา clone มาใช้
-    let nextHp = [...battleState.hp];
-    let nextShield = [...battleState.shield];
-    let nextStatuses = battleState.statuses.map(arr => [...arr]);
-
-    // เรียก Executor
-    const result = executeEffects(char.ultimate!.effects, {
-        actorIndex: charIndex,
-        team: team,
-        hp: nextHp,
-        shield: nextShield,
-        statuses: nextStatuses,
-        bossMaxHp: BOSS_MAX_HP
-    });
-
-    // Update Local Variables จาก Result
-    nextHp = result.newHp;
-    nextShield = result.newShield;
-    nextStatuses = result.newStatuses;
-
-    // Show Texts & Shake
-    result.textsToAdd.forEach(t => {
-    
-        const playerCount = battleState.players.length;
+    // ---------------------------------------------------------
+    // 4. 🔥 สร้าง Mock Card (หัวใจสำคัญของการ Refactor นี้)
+    // ---------------------------------------------------------
+    const mockUltCard: CardType = {
+        id: `ult-${playerUnit.id}-${Date.now()}`,
+        name: ultInfo.name,
+        description: ultInfo.description || "Ultimate Skill",
+        type: 'Special', // หรือ 'Attack'
         
-        if (t.target < playerCount) {
-            // ✅ ยังอยู่ในช่วงผู้เล่น (เช่น 0, 1)
-            addFloatingText('PLAYER', t.target, t.text, t.type);
-        } else {
-            // ✅ เกินจำนวนผู้เล่น แปลว่าเป็นศัตรู (เช่น 2, 3)
-            // ต้องลบออกด้วย playerCount เพื่อให้เริ่มนับ 0 ใหม่
-            addFloatingText('ENEMY', t.target - playerCount, t.text, t.type);
-        }
+        // 🎯 กำหนดเป้าหมาย (ส่วนใหญ่ Ult มักจะหมู่ หรือคุณจะเช็คจาก ultInfo ก็ได้)
+        targetType: 'ALL_ENEMIES', 
         
+        cost: 0,
+        // ความแรง: ดึงจาก stats ของท่าไม้ตาย หรือใช้สูตรคำนวณ
+        value: playerUnit.character.stats.power || 50, 
+        
+        icon: '⚡',
+        ultimateCharge: 0,
+        effect: 'AoE' // ใส่ Effect ที่เหมาะสม (เช่น AoE, ApplyDot)
+    };
+
+    // ---------------------------------------------------------
+    // 5. ⚔️ คำนวณ Damage และ Update State
+    // ---------------------------------------------------------
+    setBattleState(prev => {
+        // Copy Enemies มาแก้ไข
+        const newEnemies = prev.enemies.map(e => ({ ...e }));
+        
+        // หาเป้าหมาย (ในที่นี้สมมติว่าเป็นท่าหมู่ คือศัตรูทุกคนที่ยังไม่ตาย)
+        // ถ้าอนาคตมีท่าเดี่ยว ให้เขียน logic เลือกเป้าหมายตรงนี้
+        const targets = newEnemies.filter(e => !e.isDead && e.currentHp > 0);
+
+        targets.forEach((targetUnit, idxInArray) => { // idxInArray คือ index จริงใน array enemies
+             // A. คำนวณ Effect (ดาเมจดิบ)
+             const effectResult = calculateCardEffect(
+                mockUltCard,
+                playerUnit,     // ผู้ใช้ท่า (Player)
+                playerUnit.shield,
+                targetUnit.shield,
+                targetUnit.statuses
+            );
+
+            // B. หักลบเกราะ (Damage สุทธิ)
+            const dmgResult = calculateDamage(
+                targetUnit.currentHp,
+                targetUnit.shield,
+                effectResult.damage
+            );
+
+            // C. Update ค่าลงใน Unit
+            const oldShield = targetUnit.shield;
+            targetUnit.currentHp = dmgResult.hp;
+            targetUnit.shield = dmgResult.shield;
+            targetUnit.isDead = targetUnit.currentHp <= 0;
+
+            // D. Visuals (Floating Text & Shake)
+            // ต้องหา index จริงของศัตรูใน state เพื่อแสดงผลให้ถูกตัว
+            const realEnemyIndex = prev.enemies.findIndex(e => e.id === targetUnit.id);
+            
+            const damageDealt = effectResult.damage - (oldShield - dmgResult.shield);
+
+            if (damageDealt > 0) {
+                addFloatingText("ENEMY", realEnemyIndex, `${damageDealt}`, 'DMG');
+                triggerShake("ENEMY", realEnemyIndex);
+            } else if ((oldShield - dmgResult.shield) > 0) {
+                addFloatingText("ENEMY", realEnemyIndex, 'Block', 'BLOCK');
+            }
+
+            // แสดง Effect Text อื่นๆ
+            effectResult.textsToAdd.forEach(t => 
+                addFloatingText("ENEMY", realEnemyIndex, t.text, t.type as any)
+            );
+        });
+
+        return { ...prev, enemies: newEnemies };
     });
-    result.shakeTargets.forEach(idx => triggerShake(idx));
 
-    // --- UPDATE STATE ---
-    setBattleState(prev => ({ 
-        ...prev, 
-        hp: nextHp, 
-        shield: nextShield, 
-        statuses: nextStatuses 
-    }));
+    await delay(1000);
 
-    await delay(1000); 
-    
-    // --- CHECK PHASE ---
-    // ✅ ใช้ nextHp เช็ค
-    const bossDead = nextHp[2] <= 0;
-    const minionDead = nextHp[3] === undefined || nextHp[3] <= 0;
-
-    if (bossDead && minionDead) { 
-        setPhase('GAME_WON'); 
-        const shuffled = [...CARD_POOL].sort(() => 0.5 - Math.random()); 
-        setRewardOptions(shuffled.slice(0, 3).map((c, i) => ({ ...c, id: `reward-${Date.now()}-${i}` })));
-    } else {
-        // Ultimate ไม่นับ Action Count ให้กลับมาคิดต่อ
-        setPhase('PLAYER_THINKING'); 
-    }
-  };
-
-  // Helper: เช็คสถานะเกมหลังจากทำ Action
-  const checkGameStatus = () => {
+    // ---------------------------------------------------------
+    // 6. Check End Game / Phase
+    // ---------------------------------------------------------
+    // เช็คจาก State ล่าสุด (ต้องดึงผ่าน setBattleState callback หรือเช็คแบบ manual)
     setBattleState(curr => {
-        if (curr.hp[2] <= 0 && curr.hp[3] <= 0) { 
-            setPhase('GAME_WON'); 
-            const shuffled = [...CARD_POOL].sort(() => 0.5 - Math.random()); 
-            setRewardOptions(shuffled.slice(0, 3).map((c, i) => ({ ...c, id: `reward-${Date.now()}-${i}` })));
-            return curr; 
-        }
-        
-        // ถ้าเป็น Ult ให้กลับมา Thinking เหมือนเดิม (ไม่นับ Action Count)
-        // หรือถ้าอยากให้นับ Action ก็ใส่ logic เพิ่มตรงนี้
-        if (phase === 'PLAYER_EXECUTING' && playerActionCount < 2) { 
-           // *ในที่นี้สมมติว่า Ult ไม่นับ Action Count
-        }
+        const allEnemiesDead = curr.enemies.every(e => e.isDead || e.currentHp <= 0);
 
-        // Logic การนับ Action สำหรับการ์ดปกติ
-        // (เนื่องจากเราเรียก checkGameStatus ใน handleUltimate ด้วย ต้องระวัง logic ชนกัน)
-        // วิธีง่ายสุด: แยก function หรือเช็ค flag. ในที่นี้ขอใช้ logic เดิมของ executePlayerAction
-        
-        // หมายเหตุ: เพื่อความง่ายในการรวมโค้ด ผมจะเขียน logic นับ turn ไว้ใน executePlayerAction แทน
-        // ดังนั้น function นี้ทำหน้าที่แค่เช็คตายกับ set phase กลับ
+        if (allEnemiesDead) {
+            setPhase('GAME_WON');
+            // Logic สุ่มของรางวัล
+            const shuffled = [...CARD_POOL].sort(() => 0.5 - Math.random());
+            setRewardOptions(shuffled.slice(0, 3).map((c, i) => ({ ...c, id: `reward-${Date.now()}-${i}` })));
+        } else {
+            // ใช้ Ult เสร็จแล้ว ยังไม่จบเทิร์น กลับไปให้ผู้เล่นคิดต่อ
+            setPhase('PLAYER_THINKING'); 
+        }
         return curr;
     });
-
-    // Logic การเปลี่ยน Phase (ต้องอยู่นอก setBattleState เพื่ออ่านค่าล่าสุดได้แม่นยำกว่า หรือใช้ functional update)
-    // ตรงนี้ขอใช้แบบ Manual ในแต่ละ Action Function เพื่อความชัวร์
   };
-
 
   const skipTurn = () => { 
       setPhase('ENEMY_TURN'); 
@@ -508,7 +552,11 @@ const executePlayerAction = async () => {
   const handleRestock = () => {
     const keptCard = hand.find(c => c.id === selectedCardId);
     const nextHand = keptCard ? [keptCard] : [];
+    
+    // จั่วการ์ดใหม่
     drawCards(5 - nextHand.length, nextHand);
+    
+    // Reset ค่าต่างๆ
     setPlayerActionCount(0); 
     setSelectedCardId(null); 
     setSelectedCharId(null);
@@ -516,20 +564,45 @@ const executePlayerAction = async () => {
     setLog("เริ่มเทิร์นใหม่!");
     
     // Process DOT/HOT Player Side
-    processTurnTick((idx, val, type) => {
-        addFloatingText(idx, `${val}`, type);
-        if (type === 'DOT') triggerShake(idx);
+    // ⚠️ ต้องเช็คว่า processTurnTick ของคุณ ส่งค่ามาเรียงแบบไหน?
+    // สมมติว่าเรียงเป็น: (index, value, type)
+    processTurnTick((side, idx, val, type) => {
+        
+        // ✅ แก้ไข 1: เพิ่ม 'PLAYER' เป็นตัวแรก
+        addFloatingText(side, idx, `${val}`, type);
+        
+        // ✅ แก้ไข 2: เพิ่ม 'PLAYER' เป็นตัวแรก
+        if (type === 'DOT') {
+            triggerShake(side, idx);
+        }
     });
-  };
+};
 
-  const cheat = (cmd: string) => {
+const cheat = (cmd: string) => {
       if (cmd === 'killboss') { 
-          setBattleState(p => ({...p, hp:[p.hp[0], p.hp[1], 0, 0]})); 
+          setBattleState(prev => {
+              // ✅ แก้ไข: สร้าง enemies ใหม่ที่ HP = 0 และ isDead = true
+              const deadEnemies = prev.enemies.map(e => ({
+                  ...e,
+                  currentHp: 0,
+                  isDead: true
+              }));
+
+              return { ...prev, enemies: deadEnemies };
+          }); 
+
           setPhase('GAME_WON'); 
+          
+          // Logic สุ่มของรางวัลเหมือนเดิม
           const shuffled = [...CARD_POOL].sort(() => 0.5 - Math.random()); 
           setRewardOptions(shuffled.slice(0, 3).map((c, i) => ({ ...c, id: `reward-${Date.now()}-${i}` }))); 
       }
-      if (cmd === 'draw') { drawCards(5, hand); }
+
+      if (cmd === 'draw') { 
+          // ถ้า drawCards ของคุณรองรับ logic นี้อยู่แล้วก็ใช้ได้เลย
+          // หรือถ้าต้องแก้ อาจจะต้องเช็คว่า drawCards รับ parameter อะไรบ้าง
+          drawCards(5, hand); 
+      }
   };
 
   return {

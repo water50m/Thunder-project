@@ -1,28 +1,22 @@
 import { ActiveStatus } from '@/data/typesEffect'
+import { Character } from '@/data/characters';
 
 // 1. สร้าง Type สำหรับ "1 ตัวละคร" (รวมทุกอย่างในตัวเดียว)
 export interface BattleUnit {
-  // ข้อมูลคงที่ (จาก Config/Team)
-  id: number | string;
-  name: string;
-  role: 'Attacker' | 'Defender' | string;
-  maxHp: number;
-  maxUlt: number;
-  image?: string;
+  id: string | number;
+  
+  // ✅ เก็บข้อมูลต้นฉบับไว้ในนี้เลย (เข้าถึง stats, role, avatar ผ่านตัวนี้)
+  character: Character; 
 
-  // ✅ เพิ่ม Stats ที่ต้องใช้คำนวณ
-  atk: number;  // เพิ่ม
-  def: number;  // เพิ่ม
-  cri: number;  // เพิ่ม (Critical Chance)
-
-  // ข้อมูลที่เปลี่ยนแปลงระหว่างสู้ (Dynamic State)
+  // --- Dynamic State (ค่าที่เปลี่ยนตลอดเวลา) ---
   currentHp: number;
-  shield: number;
+  maxHp: number;     // อาจจะแยกไว้เพื่อความง่าย หรือจะใช้ character.stats.hp ก็ได้
   currentUlt: number;
+  maxUlt: number;
+  shield: number;
   isDead: boolean;
-  statuses: ActiveStatus[]; // หรือ StatusType[]
+  statuses: ActiveStatus[];
 }
-
 
 // 2. สร้าง State หลักที่แยกฝั่งชัดเจน
 export interface BattleState {
