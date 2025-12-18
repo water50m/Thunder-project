@@ -56,3 +56,18 @@ body {
 .animate-shake {
   animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
 }
+
+@keyframes floatUp {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-40px) scale(1.2);
+    opacity: 0;
+  }
+}
+
+.animate-floatUp {
+  animation: floatUp 1s ease-out forwards;
+}

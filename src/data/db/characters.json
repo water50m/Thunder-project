@@ -19,16 +19,16 @@
       "description": "เผาผลาญศัตรูทั้งหมด (30 Dmg/3 Turn)",
       "effects": [
         {
-          "type": "INSTANT_DMG",
+          "effect": "HealOverTime",
           "value": 80,
           "duration": 0,
-          "target": "ENEMY_ALL"
+          "target": "ALL_ENEMIES"
         },
         {
-          "type": "DOT",
+          "effect": "DOT",
           "value": 30,
           "duration": 3,
-          "target": "ENEMY_ALL",
+          "target": "ALL_ENEMIES",
           "icon": "🔥"
         }
       ]
@@ -55,14 +55,14 @@
       "description": "เพิ่มเกราะให้ตัวเองและทีม",
       "effects": [
         {
-          "type": "DEFEND_UP",
+          "effect": "Barrier",
           "value": 100,
           "duration": 0,
           "target": "SELF"
         },
         {
-          "type": "DEFEND_UP",
-          "value": 50,
+          "effect": "Barrier",
+          "value": 100,
           "duration": 0,
           "target": "TEAM_ALL"
         }
@@ -90,13 +90,13 @@
       "description": "ฮีลหมู่และรีเจนเลือด",
       "effects": [
         {
-          "type": "INSTANT_HEAL",
+          "effect": "HealOneTime",
           "value": 100,
           "duration": 0,
           "target": "TEAM_ALL"
         },
         {
-          "type": "HOT",
+          "effect": "HealOverTime",
           "value": 30,
           "duration": 3,
           "target": "TEAM_ALL",
@@ -128,13 +128,13 @@
       "description": "โจมตีรุนแรงใส่บอส",
       "effects": [
         {
-          "type": "INSTANT_DMG",
+          "effect": "DmgOneHit",
           "value": 200,
           "duration": 0,
-          "target": "ENEMY_SINGLE"
+          "target": "SINGLE_ALLY"
         },
         {
-          "type": "BUFF_POWER",
+          "effect": "BUFF_POWER",
           "value": 20,
           "duration": 2,
           "target": "SELF",

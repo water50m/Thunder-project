@@ -4,7 +4,6 @@ import { calculateDamage } from '@/utils/battleLogic';
 import { calculateCardEffect } from '@/utils/cardLogic';
 import { FloatingTextType } from '@/data/typesEffect';
 import { BattleState } from '@/types/battles';
-import { enemyData } from '@/data/enemys';
 import { DEMON_KING_CARDS } from '@/data/cards'; // ✅ 1. Import การ์ดบอสมาใช้
 
 // (ลบ EnemyMove, EnemyActionType ทิ้งได้เลย เพราะเราใช้ CardType แล้ว)

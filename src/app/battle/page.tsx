@@ -5,8 +5,6 @@ import { useBattle } from '@/hooks/battle/useBattle';
 import EnemyField from '@/components/battle/EnemyField';
 import { Character } from '@/data/characters'
 import UnitCard from '@/components/UnitCard'
-import { BattleUnit } from '@/types/battles';
-import { enemyData } from '@/data/enemys';
 
 // --- Main Component ---
 export default function BattlePage() {
@@ -34,36 +32,14 @@ export default function BattlePage() {
     cheat,
   } = useBattle();
 
- 
-  
-
   // Helper สำหรับเรียงลำดับการแสดงผลทีม (Back Row -> Front Row)
   // เราต้องการแสดง: [Team 1 (Back)] [Team 0 (Front)] --- VS --- [Boss]
   // ดังนั้นเราจะ map จาก array ที่ reverse แล้ว (หรือเรียงตาม logic นี้)
   const displayTeam = [...team].reverse(); // ถ้ามี 2 ตัว: [Char2, Char1] -> Char2 อยู่ซ้ายสุด(หลัง), Char1 อยู่ขวา(หน้า)
   const [loading, setLoading] = useState(true);
+  const [isCheatOpen, setCheatOpen] = useState(false);
+  const [cheatInput, setCheatInput] = useState('');
 
-  const enemiesToFight = enemyData.filter(e => ['Demon King', 'Slime'].includes(e.name));
-
-  const initialEnemies: BattleUnit[] = enemiesToFight.map((config, index) => ({
-        id: `battle-enemy-${config.id}-${index}`, 
-        currentHp: config.stats.hp,
-        maxHp: config.stats.hp,
-        shield: 0,
-        currentUlt: 0,
-        maxUlt: config.stats.maxUltimate || 100,
-        statuses: [],
-        isDead: false,
-        character: config 
-    })) // 👇 ต่อตูดด้วย sort ตรงนี้เลยครับ
-    .sort((a, b) => {
-        // กฎ: ถ้าใครเป็น BOSS ให้แซงคิวไปอยู่หน้าสุด (Index 0)
-        // ผลลัพธ์: Boss จะถูก Render ก่อนเพื่อน (อยู่เป็น Background) ไม่บัง Minion
-        if (a.character.role === 'Boss') return 1;
-        if (b.character.role === 'Boss') return -1;
-        return 0;
-    });
-    
   useEffect(() => {
     const setupBattle = async () => {
         try {
@@ -134,6 +110,15 @@ export default function BattlePage() {
     setupBattle();
   }, []);
 
+  // ฟังก์ชันเวลากด Enter หรือปุ่ม Run
+const handleSubmitCheat = (e: React.FormEvent) => {
+    e.preventDefault(); // กันหน้าเว็บ Refresh
+    if (cheatInput.trim()) {
+        cheat(cheatInput.trim()); // ส่งค่าไปฟังก์ชัน cheat
+        setCheatInput(''); // ล้างช่อง
+    }
+};
+
   if (!team || team.length === 0) {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
@@ -154,10 +139,48 @@ export default function BattlePage() {
       </div>
 
       {/* --- Cheat Button (Optional) --- */}
-      <div className="absolute top-16 right-4 z-50 opacity-20 hover:opacity-100 transition-opacity">
-          <button onClick={() => cheat('killboss')} className="bg-red-800 text-xs p-1 rounded mr-2">Kill Boss</button>
-          <button onClick={() => cheat('draw')} className="bg-blue-800 text-xs p-1 rounded">Draw</button>
-      </div>
+      <div className="absolute top-16 right-4 z-50 flex flex-col items-end font-mono">
+    
+        {/* 1. ปุ่ม Toggle เปิด/ปิด (จะจางๆ ถ้าไม่ได้เอาเมาส์ไปชี้) */}
+        <button 
+            onClick={() => setCheatOpen(!isCheatOpen)}
+            className="mb-2 bg-black/50 hover:bg-black/90 text-white p-2 rounded-full border border-gray-600 transition-all shadow-lg backdrop-blur-sm"
+            title="Open Developer Console"
+        >
+            {isCheatOpen ? '❌' : '💻_'}
+        </button>
+
+        {/* 2. ช่องพิมพ์คำสั่ง (แสดงเฉพาะตอนเปิด) */}
+        {isCheatOpen && (
+            <div className="bg-black/90 p-3 rounded-lg border border-gray-700 shadow-2xl animate-in slide-in-from-right-5 fade-in duration-200">
+                
+                {/* Form สำหรับพิมพ์แล้วกด Enter ได้เลย */}
+                <form onSubmit={handleSubmitCheat} className="flex gap-2">
+                    <input 
+                        type="text" 
+                        value={cheatInput}
+                        onChange={(e) => setCheatInput(e.target.value)}
+                        placeholder="cmd: killboss, fullult..."
+                        className="bg-gray-800 text-green-400 text-xs px-3 py-2 rounded border border-gray-600 focus:border-green-500 focus:outline-none w-48 placeholder-gray-500"
+                        autoFocus // เปิดมาแล้วพิมพ์ได้เลย
+                    />
+                    <button 
+                        type="submit"
+                        className="bg-green-700 hover:bg-green-600 text-white text-xs px-3 py-2 rounded font-bold"
+                    >
+                        RUN
+                    </button>
+                </form>
+
+                {/* (Optional) ปุ่มลัดสำหรับคำสั่งที่ใช้บ่อย */}
+                <div className="mt-2 flex gap-2 justify-end">
+                    <button onClick={() => cheat('killboss')} className="text-[10px] text-red-400 hover:text-red-300 underline">KillBoss</button>
+                    <button onClick={() => cheat('fullult')} className="text-[10px] text-yellow-400 hover:text-yellow-300 underline">FullUlt</button>
+                    <button onClick={() => cheat('draw')} className="text-[10px] text-blue-400 hover:text-blue-300 underline">Draw</button>
+                </div>
+            </div>
+        )}
+    </div>
 
       {/* --- BATTLE AREA (Center Stage) --- */}
       <div className="flex-1 flex items-center justify-between px-8 md:px-16 lg:px-24 w-full max-w-[1600px] mx-auto pb-32">
@@ -226,8 +249,7 @@ export default function BattlePage() {
 
         {/* === RIGHT SIDE: BOSS === */}
         <EnemyField 
-             enemies={initialEnemies} 
-             battleState={battleState}
+             enemies={battleState.enemies} 
              shaking={shaking}
              floatingTexts={floatingTexts}
              enemyCardDisplay={enemyCardDisplay}

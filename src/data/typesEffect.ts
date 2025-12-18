@@ -1,5 +1,13 @@
 // src/data/types.ts
 
+export type CardType = 'Attack' | 'Barrier' | 'Heal' | 'Special'  ;
+
+export type Effect = 'Pierce' | 'Drain' | 'AoE' | 'None' | 'ShieldBased' 
+| 'ShieldExplode' | 'BurnDetonate' | 'GroupHealDamage' | 'DmgOneHit'
+| 'CleanseHeal' | 'ApplyStun' | 'ApplyDot' | 'ApplyRegen' | 'ShieldBreaker' 
+| 'ShieldSteal' | 'DOT' | 'NormalAttack' | 'NormalDefend' |'HealOneTime'
+| 'NormalHeal' | 'HealOverTime' | 'Barrier' | 'BuffAttack';
+
 export type EffectType = 
   | 'INSTANT_DMG'   // โจมตีทันที
   | 'INSTANT_HEAL'  // ฮีลทันที
@@ -12,7 +20,8 @@ export type EffectType =
   | 'FORTIFY'
   | 'CURSE_HEAL'
   | 'BUFF'
-  | 'DEBUFF';    // เพิ่มเกราะต่อเนื่อง
+  | 'DEBUFF'
+  | 'ATK_UP';    // เพิ่มเกราะต่อเนื่อง
 
 
 export const EffectDebuff = [
@@ -21,7 +30,7 @@ export const EffectDebuff = [
 export type TargetType = 'SELF' | 'SINGLE_ENEMY' | 'ALL_ENEMIES' | 'SINGLE_ALLY' | 'TEAM_ALL';
 
 export interface EffectDeteail {
-  type: EffectType;
+  effect: Effect;
   value: number;       // ความแรง
   duration: number;    // จำนวนเทิร์น (0 = ทันที)
   target: TargetType;

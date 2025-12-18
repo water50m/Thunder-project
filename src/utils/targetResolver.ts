@@ -19,7 +19,6 @@ export const resolveTargets = (
   enemies: BattleUnit[],     // Array ศัตรูทั้งหมด
   players: BattleUnit[],     // Array ฝั่งเราทั้งหมด (หรือ allies)
   actorIdx: number,    // Index ของคนร่าย (ปกติคือ playerIndex)
-  inputTargetIndex: number = -1 // เป้าที่ User จิ้มมา (ถ้ามี)
 ): TargetLocation[] => {
 
   const results: TargetLocation[] = [];
@@ -34,25 +33,27 @@ export const resolveTargets = (
 
     // --- 2. เป้าหมายคือศัตรูเดี่ยว ---
     case 'SINGLE_ENEMY':
-      // ถ้ามีการเลือกเป้ามา และเป้านั้นมีตัวตน
-      if (inputTargetIndex !== -1 && enemies[inputTargetIndex]) {
-         results.push({ side: 'ENEMY', index: inputTargetIndex, unit: enemies[inputTargetIndex] });
-      } else {
-         // Fallback: ถ้าไม่ได้เลือกเป้า (เช่น กด Double Click) -> ให้หา Boss หรือตัวแรกที่รอดชีวิต
-         // สมมติ: หา Boss ก่อน ถ้าไม่มีเอาตัวแรกที่เลือด > 0
-         const bossIdx = enemies.findIndex(e => e.character.role == 'Boss' && e.currentHp > 0);
-         const firstAliveIdx = enemies.findIndex(e => e.currentHp > 0);
-         
-         const targetIdx = bossIdx !== -1 ? bossIdx : firstAliveIdx;
-         
-         if (targetIdx !== -1 && enemies[targetIdx]) {
-             results.push({ side: 'ENEMY', index: targetIdx, unit: enemies[targetIdx] });
-         }
-      }
+      
+          // Fallback: ถ้าไม่ได้เลือกเป้าหมายมา
+          // กฎใหม่: "ต้องหาตัวที่ยืนหน้าก่อนเสมอ"
+          
+          // ค้นหา Index แรกสุดที่มีชีวิต (นี่คือตัวที่อยู่หน้าสุดตามลำดับ Array)
+          const frontUnitIdx = enemies.findIndex(e => e.currentHp > 0);
+          
+          // ถ้าเจอตัวเป็นๆ (ไม่คืนค่า -1) ก็ล็อกเป้าตัวนั้นเลย
+          if (frontUnitIdx !== -1 && enemies[frontUnitIdx]) {
+              results.push({ 
+                  side: 'ENEMY', 
+                  index: frontUnitIdx, 
+                  unit: enemies[frontUnitIdx] 
+              });
+          }
+      
       break;
 
     // --- 3. เป้าหมายคือศัตรูทั้งหมด (AOE) ---
     case 'ALL_ENEMIES':
+  
       enemies.forEach((enemy, idx) => {
         if (enemy.currentHp > 0) { // เอาเฉพาะตัวที่ยังไม่ตาย
           results.push({ side: 'ENEMY', index: idx, unit: enemy });
@@ -62,13 +63,17 @@ export const resolveTargets = (
 
     // --- 4. เป้าหมายคือเพื่อนเดี่ยว (ฮีล/บัฟ) ---
     case 'SINGLE_ALLY':
-      if (inputTargetIndex !== -1 && players[inputTargetIndex]) {
-        results.push({ side: 'PLAYER', index: inputTargetIndex, unit: players[inputTargetIndex] });
-      } else {
-        // Fallback: เข้าตัวเอง
-        if (players[actorIdx]) {
-            results.push({ side: 'PLAYER', index: actorIdx, unit: players[actorIdx] });
-        }
+      // ค้นหา Index ของตัวละครที่:
+      // 1. Index ไม่ตรงกับคนร่าย (ไม่ใช่ตัวเอง)
+      // 2. ยังมีชีวิตอยู่ (currentHp > 0)
+      const teammateIdx = players.findIndex((p, idx) => idx !== actorIdx && p.currentHp > 0);
+
+      if (teammateIdx !== -1 && players[teammateIdx]) {
+          results.push({ 
+              side: 'PLAYER', 
+              index: teammateIdx, 
+              unit: players[teammateIdx] 
+          });
       }
       break;
 

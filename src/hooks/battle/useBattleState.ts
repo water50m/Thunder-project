@@ -19,7 +19,7 @@ export function useBattleState(initialTeam: any[]) {
   
   // ✅ 1. Init State
   const [battleState, setBattleState] = useState<BattleState>(() => {
-
+    // สร้างข้อมูลเริ่มต้น
     // --- 1.1 แปลงข้อมูล Team (Players) ---
     const initialPlayers: BattleUnit[] = initialTeam.map((char) => {
       // ดึงค่า stat ออกมาใช้เพื่อความสะดวก

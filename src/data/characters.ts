@@ -29,8 +29,8 @@ export const charactersData: Character[] = [
       name: "Inferno",
       description: "เผาผลาญศัตรูทั้งหมด (30 Dmg/3 Turn)",
       effects: [
-        { type: 'INSTANT_DMG', value: 80, duration: 0, target: 'ALL_ENEMIES' },
-        { type: 'DOT', value: 30, duration: 3, target: 'ALL_ENEMIES', icon: '🔥' }
+        { effect: 'DmgOneHit', value: 80, duration: 0, target: 'ALL_ENEMIES' },
+        { effect: 'DOT', value: 30, duration: 3, target: 'ALL_ENEMIES', icon: '🔥' }
       ]
     }
   },
@@ -41,8 +41,8 @@ export const charactersData: Character[] = [
       name: "Iron Wall",
       description: "เพิ่มเกราะให้ตัวเองและทีม",
       effects: [
-        { type: 'DEFEND_UP', value: 100, duration: 0, target: 'SELF' }, // เกราะตัวเองเยอะ
-        { type: 'DEFEND_UP', value: 50, duration: 0, target: 'TEAM_ALL' } // เกราะเพื่อน
+        { effect: 'Barrier', value: 100, duration: 0, target: 'SELF' }, // เกราะตัวเองเยอะ
+        { effect: 'Barrier', value: 50, duration: 0, target: 'TEAM_ALL' } // เกราะเพื่อน
       ]
     }
   },
@@ -53,8 +53,8 @@ export const charactersData: Character[] = [
       name: "Blessing",
       description: "ฮีลหมู่และรีเจนเลือด",
       effects: [
-        { type: 'INSTANT_HEAL', value: 100, duration: 0, target: 'TEAM_ALL' },
-        { type: 'HOT', value: 30, duration: 3, target: 'TEAM_ALL', icon: '💚' }
+        { effect: 'HealOneTime', value: 100, duration: 0, target: 'TEAM_ALL' },
+        { effect: 'HealOverTime', value: 30, duration: 3, target: 'TEAM_ALL', icon: '💚' }
       ]
     }
   },
@@ -65,8 +65,8 @@ export const charactersData: Character[] = [
       name: "Strike Command",
       description: "โจมตีรุนแรงใส่บอส",
       effects: [
-        { type: 'INSTANT_DMG', value: 200, duration: 0, target: 'SINGLE_ENEMY' },
-        { type: 'BUFF_POWER', value: 20, duration: 2, target: 'SELF', icon: '💪' }
+        { effect: 'DmgOneHit', value: 200, duration: 0, target: 'SINGLE_ENEMY' },
+        { effect: 'BuffAttack', value: 20, duration: 2, target: 'SELF', icon: '💪' }
       ]
     }
   }

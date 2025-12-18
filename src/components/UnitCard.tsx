@@ -52,7 +52,6 @@ export const UnitCard: React.FC<UnitCardProps> = ({
   isSelected,
   isShaking,
   statuses,
-  floatingTexts,
   onSelect,
   onUltimate,
   onFloatingTextComplete

@@ -1,14 +1,13 @@
 import React from 'react';
 import { Card as CardType } from '@/data/cards';
 import { FloatingTextType, ActiveStatus, FloatingTextData } from '@/data/typesEffect';
-import { BattleState, BattleUnit } from '@/types/battles'
+import { BattleUnit } from '@/types/battles'
 
 // --- Types ---
 export type EnemyRank = 'MINION' | 'ELITE' | 'BOSS';
 
 interface Props {
   enemies: BattleUnit[];          // ✅ Input: รายชื่อศัตรูที่จะให้แสดง
-  battleState: BattleState;
   shaking: boolean[];              // Animation สั่น
   floatingTexts: FloatingTextData[];          // ลอยตัวเลข
   enemyCardDisplay: CardType | null; // การ์ดที่ศัตรูกำลังใช้
@@ -67,6 +66,7 @@ export default function EnemyField({
         if (enemy.isDead || enemy.currentHp <= 0) return null;
 
         // 2. ✅ ดึง Stats จาก enemy โดยตรง (เลิกใช้ battleState.xxx)
+
         const hp = enemy.currentHp;
         const shield = enemy.shield;
         const status = enemy.statuses;
@@ -142,7 +142,7 @@ export default function EnemyField({
                     {/* ✅ Floating Text (Loop จาก myTexts ที่กรองมาแล้ว) */}
                     {myTexts.map((ft) => (
                          <div key={ft.id} 
-                              className={`absolute top-0 font-bold text-2xl animate-[floatUp_1s_ease-out_forwards] pointer-events-none whitespace-nowrap
+                              className={`absolute top-0 font-bold text-2xl animate-[flyUp_1s_ease-out_forwards] pointer-events-none whitespace-nowrap
                                 ${ft.type === 'DMG' ? 'text-red-500 scale-125' : ft.type === 'HEAL' ? 'text-green-400' : 'text-blue-300'}
                               `}
                               // ✅ ส่ง index และ id กลับไปลบ

@@ -1,9 +1,9 @@
 // src/data/cards.ts
-import { TargetType } from '@/data/typesEffect'
+import { TargetType, CardType, Effect } from '@/data/typesEffect'
 
-export type CardType = 'Attack' | 'Defend' | 'Heal' | 'Special'  ;
 
-export type Effect = 'Pierce' | 'Drain' | 'AoE' | 'None' | 'ShieldBased' | 'ShieldExplode' | 'BurnDetonate' | 'GroupHealDamage' | 'CleanseHeal' | 'ApplyStun' | 'ApplyDot' | 'ApplyRegen' | 'ShieldBreaker' | 'ShieldSteal' ;
+
+
 
 export interface Card {
   id: string;
@@ -42,15 +42,15 @@ export const CARD_POOL: Card[] = [
 
   // --- Defend Cards ---
   { 
-    id: 'def-001', name: "Iron Guard", type: 'Defend', targetType: 'SELF', // ✅
+    id: 'def-001', name: "Iron Guard", type: 'Barrier', targetType: 'SELF', // ✅
     value: 40, cost: 1, description: "ยกโล่ป้องกัน", icon: "🛡️", effect: 'None', ultimateCharge: 10 
   },
   { 
-    id: 'def-002', name: "Fortress", type: 'Defend', targetType: 'SELF', // ✅
+    id: 'def-002', name: "Fortress", type: 'Barrier', targetType: 'SELF', // ✅
     value: 90, cost: 3, description: "ป้อมปราการ", icon: "🏰", effect: 'None', ultimateCharge: 30 
   },
   { 
-    id: 'def-003', name: "Spiked Shield", type: 'Defend', targetType: 'SELF', // ✅
+    id: 'def-003', name: "Spiked Shield", type: 'Barrier', targetType: 'SELF', // ✅
     value: 30, cost: 2, description: "สะท้อนดาเมจ", icon: "🌵", effect: 'None', ultimateCharge: 15 
   },
 
@@ -204,7 +204,7 @@ export const DEMON_KING_CARDS: Card[] = [
   {
     id: 'dk-guard',
     name: 'Demon Skin',
-    type: 'Defend',
+    type: 'Barrier',
     targetType: 'SELF', // บัฟตัวเอง
     value: 40, // เกราะหนามาก
     cost: 0,
