@@ -13,7 +13,6 @@ export default function BattlePage() {
   const {
     team, 
     battleState, 
-    bossMaxHp, 
     hand, 
     phase, 
     log, 
@@ -47,32 +46,32 @@ export default function BattlePage() {
   const enemiesToFight = enemyData.filter(e => ['Demon King', 'Slime'].includes(e.name));
 
   const initialEnemies: BattleUnit[] = enemiesToFight.map((config, index) => ({
-    // สร้าง ID เฉพาะกิจในสนาม (กันซ้ำเวลาเจอมอนตัวเดิมหลายตัว)
-    id: `battle-enemy-${config.id}-${index}`, 
-
-    // --- กำหนดค่าเริ่มต้น (Initialize State) ---
-    currentHp: config.stats.hp, // เลือดเต็มหลอด
-    maxHp: config.stats.hp,
-    shield: 0,
-    currentUlt: 0,
-    maxUlt: config.stats.maxUltimate || 100,
-    statuses: [],
-    isDead: false,
-
-    // --- เก็บข้อมูล Mock ไว้ใน character ---
-    character: config 
-}));
-
+        id: `battle-enemy-${config.id}-${index}`, 
+        currentHp: config.stats.hp,
+        maxHp: config.stats.hp,
+        shield: 0,
+        currentUlt: 0,
+        maxUlt: config.stats.maxUltimate || 100,
+        statuses: [],
+        isDead: false,
+        character: config 
+    })) // 👇 ต่อตูดด้วย sort ตรงนี้เลยครับ
+    .sort((a, b) => {
+        // กฎ: ถ้าใครเป็น BOSS ให้แซงคิวไปอยู่หน้าสุด (Index 0)
+        // ผลลัพธ์: Boss จะถูก Render ก่อนเพื่อน (อยู่เป็น Background) ไม่บัง Minion
+        if (a.character.role === 'Boss') return 1;
+        if (b.character.role === 'Boss') return -1;
+        return 0;
+    });
+    
   useEffect(() => {
-    console.log('working ');
     const setupBattle = async () => {
         try {
+            const savedDeckId = JSON.parse(localStorage.getItem('playerDeck') || 'null');
              //  ดึงข้อมูล Deck ทั้งหมด
-            console.log('before get decks');
-            const deckRes = await fetch('/api/decks');
+            const deckRes = await fetch(`/api/decks?id=${savedDeckId}`);
             if (!deckRes.ok) throw new Error("Failed to fetch decks");
             const decks = await deckRes.json();
-
             const savedCharacter = localStorage.getItem('myTeam');
 
             let myChar: Character[] = [];
@@ -85,9 +84,6 @@ export default function BattlePage() {
                     if (Array.isArray(parsedTeam) && parsedTeam.length > 0) {
                         myChar = parsedTeam; // เอาตัวแรกในทีมมาเล่น
 
-                        parsedTeam.forEach((char, index) => {
-                            console.log(`ตัวละครคนที่ ${index + 1} (${char.name}) มีสกิล:`, char.equipedSkillCard);
-                        });
 
                         // 3. รวมการ์ดทั้งหมดเข้าด้วยกัน (ใช้ flatMap คือวิธีที่ง่ายที่สุด)
                         // flatMap จะดึง array ย่อยออกมาแล้วแบให้เป็น array เดียวชั้นเดียว
@@ -106,22 +102,20 @@ export default function BattlePage() {
             // ถ้าไม่มี ให้ใช้ Deck แรกสุดเป็น Default
             
             // สมมติว่าเราจะแก้ที่ Deck ตัวแรก (index 0)
-            const targetDeck = decks[0];
+            
+            const targetDeck = decks;
 
             // ตรวจสอบว่ามี key 'cardIDs' อยู่ไหม ถ้าไม่มีให้เริ่มด้วย array ว่าง
             // (หมายเหตุ: เช็คชื่อ key ดีๆ นะครับ ใน database คุณใช้ 'cards' หรือ 'cardIDs')
-            const existingCards = targetDeck.cardIDs || targetDeck.cards || []; 
+            const existingCards = targetDeck.cardIds || targetDeck.cards || []; 
 
             // 🔥 รวมร่าง! (Deck หลัก + Skill Cards)
-            targetDeck.cardIDs = [...existingCards, ...allSkillCards];
+            targetDeck.cardIds = [...existingCards, ...allSkillCards];
             
-            // (Optional) ถ้า key เดิมชื่อ cards ก็อัปเดตให้เหมือนกันกันเหนียว
-            targetDeck.cards = targetDeck.cardIDs; 
+
                        
             // ได้รายชื่อการ์ดมาแล้ว (Array of IDs)
-            const cardList = targetDeck.cardIDs // Fallback
-
-            console.log("Starting battle with deck:", targetDeck?.name, cardList);
+            const cardList = targetDeck.cardIds // Fallback
 
             // 4. ส่งเข้า initializeGame
             if (myChar) {
@@ -140,7 +134,6 @@ export default function BattlePage() {
     setupBattle();
   }, []);
 
-  console.log('team ->',team);
   if (!team || team.length === 0) {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">

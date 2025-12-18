@@ -99,23 +99,20 @@ export default function EnemyField({
 
         // --- Style Logic (คงเดิมของคุณไว้) ---
         let sizeClass = "w-24 h-24"; 
-        let zIndex = "z-20";        
         let borderClass = "border-2 border-red-900 rounded-full";
 
 
         
         if (enemy.character.role === 'Boss') { // เช็ค rank ให้ชัวร์
             sizeClass = "w-56 h-56 md:w-64 md:h-64";
-            zIndex = "z-10"; 
             borderClass = "border-4 border-red-700 rounded-full shadow-[0_0_60px_rgba(220,38,38,0.3)]";
         } else if (enemy.character.role=== 'Minion') {
             sizeClass = "w-32 h-32";
-            zIndex = "z-15";
-            borderClass = "border-2 border-purple-500 rounded-xl rotate-45"; 
+            borderClass = "border-2 border-purple-500 rounded-full "; 
         }
 
         return (
-            <div key={enemy.id} className={`relative flex flex-col items-center ${zIndex}`}>
+            <div key={enemy.id} className={`relative flex flex-col items-center `}>
                 
                 {/* 1. Stats Bar */}
                 <div className={`mb-2 flex flex-col items-center w-full ${enemy.character.role === 'Boss' ? 'w-64' : 'w-24'}`}>

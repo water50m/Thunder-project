@@ -9,17 +9,15 @@ import path from 'path';
 const DB_PATH = path.join(process.cwd(), 'src/data/db/decks.json');
 
 // GET: ดึงรายการ Deck ทั้งหมด
-export async function GET() {
+export async function GET(request: Request) { // ✅ 1. เพิ่ม parameter 'request'
   try {
-    // 1. ถ้าไม่มีไฟล์ ให้คืนค่าว่าง [] ทันที (ป้องกัน Error)
+    // --- ส่วนเดิม: อ่านไฟล์ ---
     if (!fs.existsSync(DB_PATH)) {
         return NextResponse.json([]); 
     }
 
-    // 2. อ่านไฟล์
     const fileData = fs.readFileSync(DB_PATH, 'utf-8');
     
-    // 3. แปลงเป็น JSON (ดัก Error เผื่อไฟล์ว่างเปล่า)
     let decks = [];
     try {
         decks = JSON.parse(fileData);
@@ -27,7 +25,24 @@ export async function GET() {
         console.warn("Deck file is corrupt or empty, returning []");
         decks = [];
     }
-    
+    // ------------------------
+
+    // ✅ 2. Logic ใหม่: เช็คว่ามี id ส่งมาไหม?
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (id) {
+        // ค้นหา Deck ที่ ID ตรงกัน
+        const foundDeck = decks.find((d: any) => d.id === id);
+
+        if (foundDeck) {
+            return NextResponse.json(foundDeck); // เจอ -> ส่งคืน object เดียว
+        } else {
+            return NextResponse.json({ error: 'Deck not found' }, { status: 404 }); // ไม่เจอ -> 404
+        }
+    }
+
+    // ✅ 3. ถ้าไม่มี id ส่งมา -> คืนค่าทั้งหมดตามปกติ
     return NextResponse.json(decks);
 
   } catch (error) {

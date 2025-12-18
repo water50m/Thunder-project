@@ -29,6 +29,7 @@ export default function CharacterSelection() {
           setDecks(data);
           // Optional: Auto-select the first deck if available
           if (data.length > 0) {
+            
             setSelectedDeckId(data[0].id);
           }
         }
@@ -81,10 +82,9 @@ export default function CharacterSelection() {
     if (selectedDeckId) {
         // Find the full deck object or just save the ID to fetch later
         // Strategy: Save the card IDs directly to localStorage to be loaded by useBattle
-        const selectedDeck = decks.find(d => d.id === selectedDeckId);
-        if (selectedDeck) {
-            localStorage.setItem('playerDeck', JSON.stringify(selectedDeck.cardIds));
-        }
+
+            localStorage.setItem('playerDeck', JSON.stringify(selectedDeckId));
+
     } else {
         // Fallback or alert if no deck selected (though button should be disabled)
         alert("Please select a deck!");
@@ -93,6 +93,7 @@ export default function CharacterSelection() {
 
     router.push('/battle');
   };
+
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8 flex flex-col items-center">

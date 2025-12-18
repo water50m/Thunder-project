@@ -16,6 +16,7 @@ import { BattleUnit } from '@/types/battles';
 // Logic Utils
 import { calculateCardBonus, calculateUltCharge, calculateDamage } from '@/utils/battleLogic';
 import { calculateCardEffect } from '@/utils/cardLogic';
+import { resolveTargets } from '@/utils/targetResolver'
 
 // Card
 import { AVAILABLE_CARDS_PLAYER } from '@/data/cards'
@@ -270,6 +271,8 @@ const executePlayerAction = async () => {
     // Logic เลือกเป้าหมาย: ถ้ามี Minion (และไม่ใช่ท่าทะลุ) ให้ตี Minion ตัวแรกก่อน
     // (สมมติ Minion อยู่ Index 1, Boss อยู่ Index 0)
     // หรือถ้า Boss อยู่ Index 0, Minion อยู่ 1 
+    console.log('all traget: ',nextEnemies)
+    console.log('card type ', card.targetType)
     const minionIndex = nextEnemies.findIndex(e => e.character.name !== 'Boss' && !e.isDead); // หา Minion ที่ไม่ตาย
     
     if (card.targetType === 'SELF') {
@@ -283,6 +286,7 @@ const executePlayerAction = async () => {
         targetIndex = 0; // ตี Boss (สมมติ Boss อยู่ตัวแรกเสมอ)
     }
 
+    console.log('traget index ',targetIndex)
     // เตรียมข้อมูลสำหรับคำนวณ
     const targetUnit = getUnit(targetSide, targetIndex);
     const actorUnit = nextPlayers[actorIdx];
@@ -308,7 +312,16 @@ const executePlayerAction = async () => {
     // 1. Damage Logic ⚔️
     if (result.damage > 0) {
         // ดึงตัวเป้าหมายมาแก้
+        console.log("Target ID ที่ส่งมา:", targetIndex);
+        // console.log("รายชื่อ Enemy ใน State:", gameState.enemies);
         const target = { ...getUnit(targetSide, targetIndex) };
+        console.log('result: ',result)
+        if (!target) {
+            console.error("❌ หา Target ไม่เจอ! ID ไม่ตรงกัน หรือ Target เป็น undefined");
+            return; 
+            } else {
+            console.log("✅ เจอ Target แล้ว: ", target.character.name, "HP ปัจจุบัน:", target.currentHp);
+            }
         
         const res = calculateDamage(target.currentHp, target.shield, result.damage);
         const dmgDealt = result.damage - (target.shield - res.shield);

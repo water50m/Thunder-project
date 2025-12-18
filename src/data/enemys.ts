@@ -12,7 +12,7 @@ export const enemyData: Character[] = [
     color: "red",
     stats: {
       hp: 1000,
-      atk: 50,  // Base Attack
+      atk: 5,  // Base Attack
       def: 20,
       cri: 10,
       power: 0,
