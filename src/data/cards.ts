@@ -84,13 +84,14 @@ export const EXTRA_CARDS: Card[] = [
       type: 'Heal',
       targetType: 'TEAM_ALL', // ✅ ฮีลหมู่และดาเมจ (อาจต้องเขียน Logic พิเศษว่าทำดาเมจด้วย)
       owner: "Lumina",
-      value: 0.20, 
+      value: 100, 
       cost: 2, 
       description: "Heal พันธมิตรทั้งหมด 20% MaxHP และทำความเสียหายเท่ากันต่อศัตรู 1 ตัว",
       icon: "✨✚", 
-      effect: 'GroupHealDamage', 
+      effect: 'HealOneTime', 
       ultimateCharge: 20,
       exclusiveTo: 2,
+      
   },
   {
       id: 'lumina-2', 

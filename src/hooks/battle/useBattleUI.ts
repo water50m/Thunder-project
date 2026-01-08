@@ -1,17 +1,24 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { FloatingTextData, FloatingTextType } from '@/data/typesEffect';
 
+// Interface สำหรับ State การสั่น
+
+export type ShakeType = 'NONE' | 'DAMAGE' | 'BLOCK';
+
+export interface ShakingState {
+    players: ShakeType[];
+    enemies: ShakeType[];
+}
+
 export function useBattleUI() {
-  const [floatingTexts, setFloatingTexts] = useState<FloatingTextData[]>([]);
-  const [shaking, setShaking] = useState<boolean[]>([false, false, false, false]);
-  const [log, setLog] = useState<string>("เริ่มเกม! เลือกตัวละคร + เลือกการ์ด");
-  const [shakeState, setShakeState] = useState<{
-      players: boolean[];
-      enemies: boolean[];
-  }>({
-      players: [],
-      enemies: []
-  });
+    const [floatingTexts, setFloatingTexts] = useState<FloatingTextData[]>([]);
+    const [log, setLog] = useState<string>("เริ่มเกม! เลือกตัวละคร + เลือกการ์ด");
+    
+    // ✅ 1. เปลี่ยน shaking เป็น Object แยกฝั่ง (ไม่ต้องกำหนด size ล่วงหน้าก็ได้)
+    const [shaking, setShaking] = useState<ShakingState>({
+        players: [],
+        enemies: []
+    });
 
     const addFloatingText = useCallback((
         side: 'PLAYER' | 'ENEMY', 
@@ -19,88 +26,64 @@ export function useBattleUI() {
         text: string, 
         type: FloatingTextType
     ) => {
-        // 1. สร้าง Object (เพิ่ม targetIndex เข้าไป)
         const newTextData: FloatingTextData = {
-            id: Date.now().toString() + Math.random().toString(), // กัน id ซ้ำ
+            id: Date.now().toString() + Math.random().toString(),
             side: side,
-            targetIndex: index, // ✅ ใส่ index ของเป้าหมายลงไป
+            targetIndex: index,
             text: text,
             type: type
         };
 
-        // 2. Logic การอัปเดต State (รวมกันถังเดียว ไม่ต้องแยก if)
-        setFloatingTexts((prev) => {
-            // แค่เติมของใหม่ต่อท้าย Array ไปเลย ง่ายและรองรับทั้ง PLAYER/ENEMY
-            return [...prev, newTextData];
+        setFloatingTexts((prev) => [...prev, newTextData]);
+    }, []);
+
+    // ✅ 2. Logic สั่น: สั่งเปิด -> รอ -> สั่งปิด (จบในตัว ไม่ต้องใช้ useEffect)
+    const triggerShake = useCallback((
+        side: 'PLAYER' | 'ENEMY', 
+        index: number, 
+        type: ShakeType = 'DAMAGE' // default เป็น DAMAGE
+    ) => {
+        const targetKey = side === 'PLAYER' ? 'players' : 'enemies';
+
+        // 1. สั่งสั่นตาม Type ที่ส่งมา ('DAMAGE' หรือ 'BLOCK')
+        setShaking(prev => {
+            const newState = { ...prev };
+            const newList = [...(newState[targetKey] || [])];
+            
+            newList[index] = type; // ✅ เก็บค่าเป็น string แทน true
+            
+            newState[targetKey] = newList;
+            return newState;
         });
+
+        // 2. ตั้งเวลา Reset กลับเป็น 'NONE'
+        setTimeout(() => {
+            setShaking(prev => {
+                const newState = { ...prev };
+                const newList = [...(newState[targetKey] || [])];
+                
+                newList[index] = 'NONE'; // ✅ Reset เป็น NONE แทน false
+                
+                newState[targetKey] = newList;
+                return newState;
+            });
+        }, 500); // 0.5s เท่าเดิม
 
     }, []);
 
+    const handleFloatingTextComplete = useCallback((targetIdx: number, textId: string) => {
+        setFloatingTexts(prev => prev.filter(t => t.id !== textId));
+    }, []);
 
-  const triggerShake = useCallback((side: 'PLAYER' | 'ENEMY', index: number) => {
-    setShakeState(prev => {
-        const targetKey = side === 'PLAYER' ? 'players' : 'enemies';
-        
-        // Copy state เดิมมาแก้ไข
-        const newObj = { ...prev };
-        const newList = [...newObj[targetKey]];
-        
-        newList[index] = true; // สั่งให้สั่น
-        newObj[targetKey] = newList;
-        
-        return newObj;
-    });
+    // ❌ ลบ useEffect อันเก่าทิ้งได้เลยครับ ไม่จำเป็นแล้ว
 
-    // ตั้งเวลาให้หยุดสั่น (Reset)
-    setTimeout(() => {
-        setShakeState(prev => {
-            const targetKey = side === 'PLAYER' ? 'players' : 'enemies';
-            const newObj = { ...prev };
-            const newList = [...newObj[targetKey]];
-            
-            newList[index] = false; // หยุดสั่น
-            newObj[targetKey] = newList;
-            
-            return newObj;
-        });
-    }, 500); // 0.5 วินาที
-}, []);
-
-  // Auto Reset Shaking logic
-  useEffect(() => {
-    const timers: NodeJS.Timeout[] = [];
-    shaking.forEach((isShaking, idx) => {
-      if (isShaking) {
-        const timer = setTimeout(() => {
-          setShaking(prev => {
-            const newShaking = [...prev];
-            newShaking[idx] = false;
-            return newShaking;
-          });
-        }, 400);
-        timers.push(timer);
-      }
-    });
-    return () => timers.forEach(clearTimeout);
-  }, [shaking]);
-
-  const handleFloatingTextComplete = useCallback((targetIdx: number, textId: string) => {
-    
-      setFloatingTexts(prev => {
-          // ✅ Logic ใหม่: "กรอง" เอาเฉพาะตัวที่ ID ไม่ตรงกับอันที่จะลบ
-          // (พูดง่ายๆ คือ เก็บตัวอื่นไว้ ลบตัวนี้ทิ้ง)
-          return prev.filter(t => t.id !== textId);
-      });
-
-  }, []);
-
-  return {
-    floatingTexts,
-    shaking,
-    log,
-    setLog,
-    addFloatingText,
-    triggerShake,
-    handleFloatingTextComplete
-  };
+    return {
+        floatingTexts,
+        shaking, // return เป็น Object { players: [], enemies: [] }
+        log,
+        setLog,
+        addFloatingText,
+        triggerShake,
+        handleFloatingTextComplete
+    };
 }

@@ -13,7 +13,7 @@ export const enemyData: Character[] = [
     stats: {
       hp: 1000,
       atk: 5,  // Base Attack
-      def: 20,
+      def: 0,
       cri: 10,
       power: 0,
       maxUltimate: 100
@@ -38,7 +38,7 @@ export const enemyData: Character[] = [
     stats: {
       hp: 200,
       atk: 15,  // ตีเบา
-      def: 5,   // ตัวนิ่ม
+      def: 0,   // ตัวนิ่ม
       cri: 0,   // ไม่คริ
       power: 0,
       maxUltimate: 50

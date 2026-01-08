@@ -84,52 +84,76 @@ export function useEnemyAI({
 
                 // วนลูปโจมตีใส่เป้าหมายทั้งหมดที่เลือกมา
                 targetIndices.forEach(targetIdx => {
-                    const targetUnit = newPlayers[targetIdx];
+                    const targetUnit = newPlayers[targetIdx]; // นี่คือ HERO (Player)
                     if (!targetUnit || targetUnit.currentHp <= 0) return;
 
-                    // A. คำนวณ Effect (ใช้ฟังก์ชันกลาง)
+                    // A. คำนวณ Effect (Base Damage)
                     const effectResult = calculateCardEffect(
                         selectedCard,
-                        actorUnit,       // ✅ แก้ตรงนี้: ส่ง BattleUnit
+                        actorUnit,       
                         actorUnit.shield,
                         targetUnit.shield,       
                         targetUnit.statuses      
                     );
 
-                    // B. หักลบเกราะ (ใช้ฟังก์ชันกลาง)
+                    // ---------------------------------------------------------
+                    // ✅ 1. คำนวณ Damage จริง (หักลบเกราะ)
+                    // ---------------------------------------------------------
                     const dmgResult = calculateDamage(
                         targetUnit.currentHp,    
                         targetUnit.shield,       
-                        effectResult.damage // ใช้ damage ที่คำนวณมา
+                        effectResult.damage 
                     );
 
-                    // C. Update ค่าลงใน Unit
-                    const oldShield = targetUnit.shield;
+                    // ---------------------------------------------------------
+                    // ✅ 2. หาค่าที่เปลี่ยนแปลง (HpLost / ShieldLost)
+                    // ---------------------------------------------------------
+                    // ต้องเทียบค่าเก่า (targetUnit.currentHp) กับค่าใหม่ (dmgResult.hp)
+                    const hpLost = targetUnit.currentHp - dmgResult.hp;
+                    const shieldLost = targetUnit.shield - dmgResult.shield;
+
+                    // ---------------------------------------------------------
+                    // ✅ 3. Update ค่าลงใน Unit
+                    // ---------------------------------------------------------
                     targetUnit.currentHp = dmgResult.hp;       
                     targetUnit.shield = dmgResult.shield;      
                     targetUnit.isDead = targetUnit.currentHp <= 0;
 
-                    // D. Visuals
-                    const damageDealt = effectResult.damage - (oldShield - dmgResult.shield);
-
-                    if (damageDealt > 0) {
-                        addFloatingText("PLAYER", targetIdx, `${damageDealt}`, 'DMG');
-                        triggerShake("PLAYER", targetIdx);
-                    } else if ((oldShield - dmgResult.shield) > 0) {
-                        addFloatingText("PLAYER", targetIdx, 'Block', 'BLOCK');
-                    }
+                    // ---------------------------------------------------------
+                    // ✅ 4. Visuals (ใส่ Logic ใหม่ของคุณตรงนี้!)
+                    // ---------------------------------------------------------
                     
-                    // แสดง Text Effect (Buff/Debuff/Stun)
+                    // กรณีเข้าเนื้อ (HP ลด) -> สั่นแดง
+                    if (hpLost > 0) {
+                        // ระบุ side เป็น "PLAYER" เสมอ เพราะบอสตีผู้เล่น
+                        addFloatingText("PLAYER", targetIdx, `${hpLost}`, 'DMG');
+                        // ต้องส่ง type 'DAMAGE' ไปด้วย (ถ้าแก้ triggerShake แล้ว)
+                        triggerShake("PLAYER", targetIdx, 'DAMAGE'); 
+                    } 
+                    
+                    // กรณีเข้าเกราะ (Shield ลด)
+                    if (shieldLost > 0) {
+                        addFloatingText("PLAYER", targetIdx, 'Block', 'BLOCK');
+
+                        // ถ้าเลือดไม่ลด (กันได้หมดจด) -> สั่นฟ้า (BLOCK)
+                        if (hpLost === 0) {
+                            triggerShake("PLAYER", targetIdx, 'BLOCK');
+                        }
+                        // ถ้าเลือดลดด้วย (เกราะแตกแล้วโดนเนื้อ) -> มันจะเข้า if บน (DAMAGE) ไปแล้ว
+                    }
+
+                    // ---------------------------------------------------------
+                    // ✅ 5. Effect อื่นๆ (Buff/Debuff text)
+                    // ---------------------------------------------------------
                     effectResult.textsToAdd.forEach(t => 
                         addFloatingText("PLAYER", targetIdx, t.text, t.type as FloatingTextType)
                     );
                     
-                    // (ตรงนี้คุณอาจจะต้องเพิ่ม logic เพื่อ push effectResult.effectsToAdd ลงใน statuses ของผู้เล่นด้วย)
+                    // (อย่าลืม Logic push effectResult.effectsToAdd ลง statuses ของผู้เล่นด้วยนะครับ ถ้ามี)
                 });
 
                 return { ...prev, players: newPlayers };
             });
-
             setEnemyCardDisplay(null);
             await delay(800);
             

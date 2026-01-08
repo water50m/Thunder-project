@@ -4,11 +4,12 @@ import { resolveTargets } from '@/utils/targetResolver';
 import { calculateCardEffect } from '@/utils/cardLogic'; 
 import { calculateDamage } from '@/utils/battleLogic';
 import { FloatingTextType } from '@/data/typesEffect'
+import { ShakeType  } from './useBattleUI';
 
 // Interface สำหรับ Callbacks (เพื่อให้ฟังก์ชันนี้สั่ง UI ขยับได้)
-interface ActionCallbacks {
+export interface ActionCallbacks {
   addFloatingText: (side: "PLAYER" | "ENEMY", index: number, text: string, type: FloatingTextType) => void;
-  triggerShake: (side: "PLAYER" | "ENEMY", index: number) => void;
+  triggerShake: (side: "PLAYER" | "ENEMY", index: number, type: ShakeType ) => void;
 }
 
 /**
@@ -35,44 +36,82 @@ export const processAction = (
     nextPlayers,
     actorIndex,
   );
-
+  console.log('-----------cal dmg----------------');
 
   // 3. วนลูปทำงาน
-  targets.forEach((target) => {
-    const targetUnit = getUnit(target.side, target.index);
-    const actorUnit = nextPlayers[actorIndex]; // ดึงตัวล่าสุดเสมอ
+    targets.forEach((target) => {
+        const targetUnit = getUnit(target.side, target.index);
+        const actorUnit = nextPlayers[actorIndex]; // ดึงตัวล่าสุดเสมอ
 
-    // A. คำนวณ Effect
-    const result = calculateCardEffect(
-       card, actorUnit, 
-       actorUnit.shield, targetUnit.shield, targetUnit.statuses
-    );
-    
-    // B. Apply Damage / Heal / Shield
-    // --- DAMAGE ---
-    if (result.damage > 0) {
+        // A. คำนวณ Effect
+        const result = calculateCardEffect(
+        card, actorUnit, 
+        actorUnit.shield, targetUnit.shield, targetUnit.statuses
+        );
+        
+        // B. Apply Damage / Heal / Shield
+        // --- DAMAGE ---
+        console.log('dmg: ', result.damage);
+
+        if (result.damage > 0) {
+        // 1. คำนวณผลลัพธ์ (แต่ยังไม่อัปเดตค่าจริง)
         const res = calculateDamage(targetUnit.currentHp, targetUnit.shield, result.damage);
-        const dmgDealt = result.damage - (targetUnit.shield - res.shield);
 
-        // Update Values
+        // 2. คำนวณส่วนต่าง (สำคัญ: ต้องทำตอนที่ targetUnit ยังเป็นค่าเก่า)
+        const hpLost = targetUnit.currentHp - res.hp;      // เลือดที่ลด
+        const shieldLost = targetUnit.shield - res.shield; // เกราะที่หายไป
+        console.log('shield lost: ', shieldLost);
+
+        // 3. อัปเดตค่าลงตัวละคร (Update Values)
         targetUnit.currentHp = res.hp;
         targetUnit.shield = res.shield;
         targetUnit.isDead = res.hp <= 0;
 
-        // Save (สำคัญมาก: บันทึกลง Array ที่ Clone มา)
+        // 4. บันทึก (Save)
         if (target.side === 'ENEMY') nextEnemies[target.index] = targetUnit;
         else nextPlayers[target.index] = targetUnit;
 
-        // Visuals
-        if (dmgDealt > 0) {
-            callbacks.addFloatingText(target.side, target.index, `${dmgDealt}`, 'DMG');
-            callbacks.triggerShake(target.side, target.index);
+        // 5. Visuals (ใช้ค่าส่วนต่างที่คำนวณไว้ข้อ 2)
+        
+        // --- กรณีเข้าเนื้อ (HP ลด) ---
+        if (hpLost > 0) {
+            callbacks.addFloatingText(target.side, target.index, `${hpLost}`, 'DMG');
+            callbacks.triggerShake(target.side, target.index, 'DAMAGE'); // สั่นแดง
         }
-        if ((targetUnit.shield - res.shield) > 0) {
+        
+        // --- กรณีเข้าเกราะ (Shield ลด) ---
+        if (shieldLost > 0) {
+            // แสดง Text ว่ากันได้ (หรือจะโชว์เลขเกราะที่ลดก็ได้)
             callbacks.addFloatingText(target.side, target.index, 'Block', 'BLOCK');
+
+            // ⚠️ Logic การแสดงโล่:
+            // ถ้าเลือดไม่ลด (กันได้หมดจด) -> ให้แสดงท่า BLOCK (โล่ขึ้น)
+            if (hpLost === 0) {
+                callbacks.triggerShake(target.side, target.index, 'BLOCK');
+            }
+            // แต่ถ้าเลือดลดด้วย (เกราะแตกแล้วโดนตีต่อ) -> เราให้ priority กับ DAMAGE (สั่นแดง) ไปแล้วใน if ข้างบน
         }
     }
 
+    // ---------------------------------------------------------
+    // ✨ CLEANSE LOGIC (ล้างสถานะผิดปกติ)
+    // ---------------------------------------------------------
+    if (result.shouldCleanse) {
+        
+        // กรองเอาเฉพาะ Status ที่ "ไม่ใช่" สิ่งไม่ดี
+        // (สมมติว่า type ที่ไม่ดีคือ: 'DEBUFF', 'DOT', 'WEAK', 'STUN')
+        const badStatuses = ['DEBUFF', 'DOT', 'WEAK', 'STUN', 'POISON'];
+        
+        // เก็บเฉพาะ status ที่ไม่อยู่ใน list ของเสีย (บัฟดีๆ จะยังอยู่)
+        const originalCount = targetUnit.statuses.length;
+        targetUnit.statuses = targetUnit.statuses.filter(s => !badStatuses.includes(s.type));
+        
+        // เช็คว่ามีการลบจริงไหม (เพื่อแสดง Effect)
+        if (targetUnit.statuses.length < originalCount) {
+             callbacks.addFloatingText(target.side, target.index, "Cleanse", "BUFF");
+        }
+    }
+    
     // -----------------------------------------------------
     // 💚 2. HEAL Logic (ฮีลเลือด)
     // -----------------------------------------------------
@@ -118,8 +157,24 @@ export const processAction = (
         });
     }
 
+    // -----------------------------------------------------------
+    // 💪 5. STAT MODIFICATION (เพิ่มพลังถาวรในการต่อสู้นี้)
+    // -----------------------------------------------------------
+        if (result.statsModifier) {
+            
+            // เช็คและเพิ่ม ATK
+            if (result.statsModifier.atk) {
+                targetUnit.character.stats.atk = (targetUnit.character.stats.atk || 0) + result.statsModifier.atk;
+            }
+
+            // เช็คและเพิ่ม DEF (เผื่ออนาคตมีการ์ดเพิ่มเกราะถาวร)
+            if (result.statsModifier.def) {
+                targetUnit.character.stats.def = (targetUnit.character.stats.def || 0) + result.statsModifier.def;
+            }
+        }
+
     // -------------------------------------------------------------
-    //  💀 เช็คตาย (DEATH CHECK) 
+    //  💀6. เช็คตาย (DEATH CHECK) 
     // -------------------------------------------------------------
     if (targetUnit.currentHp <= 0) {
         // ล็อคเลือดไว้ที่ 0 (กันติดลบ เช่น -50)
@@ -135,6 +190,7 @@ export const processAction = (
             callbacks.addFloatingText(target.side, target.index, "DEAD", "DMG");
         }
     }
+    
     // -----------------------------------------------------
     // 💾 Save Changes (บันทึกค่าลง Array)
     // -----------------------------------------------------

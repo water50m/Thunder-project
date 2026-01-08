@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+⚔️ Epic Card Battle RPG
+เกม Web-based RPG แนว Turn-based Strategy ที่ผสมผสานการจัดทีมฮีโร่และการจัด Deck การ์ดสกิล พัฒนาด้วย Next.js (App Router) และ TypeScript เน้นโครงสร้างโค้ดที่ยืดหยุ่นและการแยก Logic อย่างเป็นระบบ
 
-## Getting Started
+🎮 ฟีเจอร์หลัก (Features)
+1. ระบบต่อสู้ (Battle System)
+Turn-Based Combat: การต่อสู้แบบสลับเทิร์น ควบคุมผ่าน useBattle hook
 
-First, run the development server:
+Battle Logic: คำนวณดาเมจและผลลัพธ์ผ่าน battleLogic.ts และ cardEffects.ts
 
-```bash
+Enemy AI: ระบบ AI ศัตรูอัจฉริยะ ควบคุมด้วย useEnemyAI.ts
+
+Visuals: แสดงผลการต่อสู้ด้วย Component เช่น UnitDisplay, StatBar, และ FloatingText
+
+2. ระบบปรับแต่งตัวละคร (Character Customization)
+Character Management: หน้าจัดการตัวละคร (src/app/characters) สำหรับดูค่าพลังและสวมใส่ของ
+
+Equipment System:
+
+Loadout: สวมใส่ไอเทมได้ 5 ช่อง (จัดการผ่าน equipment.ts และ items.ts)
+
+Selection UI: หน้าต่างเลือกไอเทมแบบ Grid พร้อมแสดงรายละเอียด
+
+Skill Cards: จัดการ Deck การ์ดสกิลผ่าน API (/api/decks) และ UI
+
+3. โครงสร้างข้อมูล (Data Architecture)
+Static Data: เก็บข้อมูลเกม (Cards, Enemies, Items) ไว้ใน src/data/db เพื่อความง่ายในการปรับสมดุล
+
+Custom Hooks: แยก Business Logic ออกจาก UI อย่างชัดเจน เช่น useBattleState, useCardSystem
+
+🛠️ เทคโนโลยีที่ใช้ (Tech Stack)
+Framework: Next.js (App Router)
+
+Language: TypeScript
+
+State Management: React Custom Hooks
+
+Styling: CSS Modules / Tailwind (Global CSS)
+
+Backend: Next.js API Routes
+
+📂 โครงสร้างโปรเจกต์ (Project Structure)
+project-root/
+│
+├── src/
+│   ├── app/                    # Next.js App Router Pages
+│   │   ├── api/                # Backend API Routes (characters, decks, skillCard)
+│   │   ├── battle/             # หน้าฉากต่อสู้ (Battle Page)
+│   │   ├── characters/         # หน้าจัดการตัวละคร
+│   │   ├── decks/              # หน้าจัด Deck
+│   │   ├── game/               # หน้า Game Main Loop
+│   │   ├── shops/              # หน้าร้านค้า
+│   │   └── page.tsx            # Main Entry Page
+│   │
+│   ├── components/             # React UI Components
+│   │   ├── battle/             # Components เฉพาะฉากต่อสู้
+│   │   ├── features/           # Feature-specific components
+│   │   ├── Card.tsx            # การ์ด UI
+│   │   ├── UnitDisplay.tsx     # ตัวละครในฉาก
+│   │   ├── StatBar.tsx         # หลอดเลือด/มานา
+│   │   └── DebugConsole.tsx    # เครื่องมือ Debug
+│   │
+│   ├── data/
+│   │   └── db/                 # Static Game Data
+│   │       ├── cards.ts        # ข้อมูลการ์ดทั้งหมด
+│   │       ├── characters.ts   # ข้อมูลตัวละคร (Base Stats)
+│   │       ├── enemys.ts       # ข้อมูลศัตรู
+│   │       ├── items.ts        # ข้อมูลไอเทม
+│   │       └── typesEffect.ts  # ตารางแพ้ชนะธาตุ
+│   │
+│   ├── hooks/                  # Game Logic Hooks
+│   │   ├── battle/             # ระบบต่อสู้ (Core System)
+│   │   │   ├── useBattle.ts
+│   │   │   ├── useBattleState.ts
+│   │   │   ├── useCardSystem.ts
+│   │   │   └── useEnemyAI.ts
+│   │   └── useCharacterManager.ts
+│   │
+│   ├── lib/                    # Shared Libraries
+│   ├── types/                  # TypeScript Interfaces (battles.ts, deck.ts)
+│   └── utils/                  # Helper Functions
+│       ├── battleLogic.ts      # สูตรคำนวณการต่อสู้
+│       ├── cardEffects.ts      # ผลลัพธ์ของการ์ด
+│       └── targetResolver.ts   # ระบบเลือกเป้าหมาย
+│
+└── public/                     # Static Assets
+🚀 วิธีติดตั้งและรันเกม (Installation)
+Clone โปรเจกต์
+
+Bash
+
+git clone https://github.com/yourusername/epic-card-battle.git
+ติดตั้ง Dependencies
+
+Bash
+
+npm install
+# หรือ
+yarn install
+รันเซิร์ฟเวอร์ (Development Mode)
+
+Bash
+
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+เปิด Browser ไปที่ http://localhost:3000
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+📝 บันทึกการพัฒนา (Dev Log)
+Architecture: ย้าย Logic การคำนวณทั้งหมดไปไว้ใน hooks/ และ utils/ เพื่อให้ UI Component เบาและจัดการง่าย
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Data Management: ใช้ Static TypeScript files (data/db/*.ts) เป็นฐานข้อมูลเบื้องต้น เพื่อความรวดเร็วในการเรียกใช้และ Type Safety
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+📄 License
+โปรเจกต์นี้เป็นส่วนหนึ่งของการเรียนรู้และพัฒนาส่วนบุคคล
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Created by parinya

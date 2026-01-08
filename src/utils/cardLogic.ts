@@ -16,6 +16,14 @@ export interface CardActionResult {
   effectsToAdd: { target: number, status: ActiveStatus }[];
   textsToAdd: { target: number, text: string, type: EffectType | string }[]; // อนุโลม string เผื่อ type ไม่ตรง
   shouldExplodeShield: boolean;
+  shouldCleanse?: boolean;
+  statsModifier?: { 
+      atk?: number;
+      def?: number; 
+      power?: number;
+      criRate?:number; //%
+      criDmg?:number; //%
+  };
 }
 
 export function calculateCardEffect(
@@ -26,7 +34,7 @@ export function calculateCardEffect(
   targetStatuses: ActiveStatus[] = [], // Default []
   bonus: CardBonus = { damage: 0, block: 0 } // ✅ รับเป็น Object แทน number
 ): CardActionResult {
-  console.log('use: ',card.effect,' type: ',card.type);
+  console.log('use: ',card.effect,' type: ',card.type,'id: ',card.id);
 
 
   const result: CardActionResult = {
@@ -35,16 +43,32 @@ export function calculateCardEffect(
   };
   if (card.type === 'Attack' ) {
       // 1. Base Calculation: (ค่าการ์ด + ATK ตัวละคร + โบนัส)
-      let dmg = (card.value || 0) + (actor.character.stats.atk || 0) + bonus.damage;
+      let totalAtk = actor.character.stats.atk || 0;
 
-      // 2. Vulnerable Check (เช็คว่าศัตรูอ่อนแอไหม)
-      const isVulnerable = targetStatuses.some(s => s.type === 'WEAK' || s.type === 'DEBUFF');
-      if (isVulnerable) {
-          dmg = Math.floor(dmg * 1.5); // แรงขึ้น 50%
-          result.textsToAdd.push({ target: -2, text: "Crit!", type: "DMG" });
-      }
+        // วนลูปเช็ค Status ของตัวเรา
+        if (actor.statuses) {
+            actor.statuses.forEach(s => {
+                // ถ้าเจอสถานะที่เป็น 'BUFF_ATK' ให้เอาค่า value มาบวกเพิ่ม
+                if (s.type === 'ATK_UP') {
+                    totalAtk += s.value;
+                }
+                // (อนาคต) ถ้ามี 'DEBUFF_ATK' (โดนลดพลัง) ก็เขียนลบตรงนี้ได้
+                // else if (s.type === 'WEAK_ATK') totalAtk -= s.value;
+            });
+        }
 
-      result.damage = dmg;
+        // 2. เข้าสูตรคำนวณ (ใช้ totalAtk ที่รวมบัฟแล้ว)
+     
+        let dmg = (card.value || 0) + totalAtk + bonus.damage;
+
+        // ... (Logic Vulnerable / Critical ) ...
+        const isVulnerable = targetStatuses.some(s => s.type === 'WEAK');
+        if (isVulnerable) {
+            dmg = Math.floor(dmg * 1.5);
+            result.textsToAdd.push({ target: -2, text: "Crit!", type: "DMG" });
+        }
+
+        result.damage = dmg;
   } 
   else if (card.type === 'Heal') {
       // สูตร: ค่าการ์ด + Power
@@ -109,6 +133,52 @@ export function calculateCardEffect(
       // ---------------------------------------------------------
       // DAMAGE
       // ---------------------------------------------------------
+      case 'DmgOneHit': 
+    {
+        // 1. คำนวณ ATK รวม (Base ATK + บัฟ ATK จาก Status)
+        let totalAtk = actor.character.stats.atk || 0;
+        if (actor.statuses) {
+            actor.statuses.forEach(s => {
+                if (s.type === 'ATK_UP') totalAtk += s.value;
+            });
+        }
+
+        // 2. คำนวณดาเมจพื้นฐาน (ค่าการ์ด + ATK รวม + โบนัสของขลัง)
+        let dmg = (card.value || 0) + totalAtk + bonus.damage;
+
+        // 3. เช็คสถานะ Weak ของเป้าหมาย (แพ้ทาง/โดนเจาะเกราะ)
+        const isVulnerable = targetStatuses.some(s => s.type === 'WEAK');
+        if (isVulnerable) {
+            dmg = Math.floor(dmg * 1.5); // แรงขึ้น 50%
+            result.textsToAdd.push({ target: -2, text: "Crit!", type: "DMG" });
+        }
+
+        result.damage = dmg;
+        break;
+    }
+    case 'DOT':
+    {
+        // การ์ด DOT มักจะไม่ทำดาเมจทันที (หรือทำนิดหน่อย) แต่เน้นยัดสถานะ
+        
+        // 1. (Optional) ถ้าอยากให้มีดาเมจเปิดหัวนิดหน่อย ให้เปิดบรรทัดนี้:
+        // result.damage = Math.floor((actor.character.stats.atk || 0) * 0.5); 
+
+        // 2. สร้าง Status Effect ส่งไปแปะศัตรู
+        result.effectsToAdd.push({
+            target: -2, // -2 คือเป้าหมายที่เราเลือก (Enemy)
+            status: { 
+                id: `dot-${Date.now()}`, 
+                type: 'DOT',         // ⚠️ ต้องตรงกับระบบ Process Turn ของคุณ (เช่น 'POISON', 'BURN')
+                value: card.value || 5,   // ลดเลือดเทิร์นละเท่าไหร่
+                duration: card.duration || 3, // อยู่นานกี่เทิร์น
+                icon: '☠️'           // ไอคอนหัวกะโหลก
+            }
+        });
+
+        // 3. แจ้งเตือน UI
+        result.textsToAdd.push({ target: -2, text: "Poisoned", type: "DEBUFF" });
+        break;
+    }
 
       case 'BurnDetonate':
           let totalExplodeDmg = 0;
@@ -135,6 +205,25 @@ export function calculateCardEffect(
       // ---------------------------------------------------------
       // HEAL
       // ---------------------------------------------------------
+      case 'CleanseHeal':
+        // ---------------------------------------------------
+        // 1. ส่วน HEAL (คำนวณยอดฮีล)
+        // ---------------------------------------------------
+        // สูตร: ค่าการ์ด + Power
+        result.heal = (card.value || 0) + (actor.character.stats.power || 0);
+
+        // ---------------------------------------------------
+        // 2. ส่วน CLEANSE (ส่งคำสั่งให้ล้างสถานะ)
+        // ---------------------------------------------------
+        result.shouldCleanse = true; 
+
+        // ---------------------------------------------------
+        // 3. Visual (ข้อความเด้ง)
+        // ---------------------------------------------------
+        // แจ้งเตือนว่า "Cleanse" (ส่วนตัวเลขฮีล เดี๋ยวระบบ Heal จะเด้งให้เอง)
+        result.textsToAdd.push({ target: -1, text: "Purify!", type: "BUFF" });
+        break;
+        
       case 'ApplyRegen':
         result.effectsToAdd.push({
           target: -1,
@@ -176,7 +265,7 @@ export function calculateCardEffect(
         // (Optional) ถ้าอยากให้มี Text เด้งบอกว่า Heal ก็ใส่เพิ่มได้
         // result.textsToAdd.push({ target: -1, text: "Heal", type: "HEAL" });
         break;
-        
+
       // ---------------------------------------------------------
       // BUFF
       // ---------------------------------------------------------
@@ -190,7 +279,7 @@ export function calculateCardEffect(
             target: -1, // -1 = ตัวเราเอง
             status: {
                 id: `atkup-${Date.now()}`,
-                type: 'BUFF',     // ⚠️ ตั้งชื่อ type ให้ไม่ซ้ำกับพวก DOT/STUN
+                type: 'ATK_UP',     // ⚠️ ตั้งชื่อ type ให้ไม่ซ้ำกับพวก DOT/STUN
                 value: buffAmount,  // ค่าที่จะเอาไปบวกเพิ่มตอนตี
                 duration: buffDuration,
                 icon: '⚔️'        // ไอคอนดาบ
@@ -228,27 +317,13 @@ export function calculateCardEffect(
       case 'Drain':
             // ✅ ทำงานเฉพาะตอนมี Damage (ต้องเป็น Card Type: Attack มาก่อน)
             if (result.damage > 0) {
-                // 1. กำหนด % การดูดเลือด (Default 30% หรือ 0.3)
-                // ถ้าอยากให้ card.value เป็นตัวระบุ % ให้แก้เป็น: (card.value || 30) / 100
-                const drainPercent = 0.3; 
-
-                // 2. คำนวณยอดฮีล (ปัดเศษลง)
-                const healAmount = Math.floor(result.damage * drainPercent);
-
-                // 3. ยัดใส่ result.heal
-                if (healAmount > 0) {
-                    result.heal = healAmount;
-                    
-                    // เพิ่ม Text บอกผู้เล่น
-                    result.textsToAdd.push({ 
-                        target: -1, // -1 คือตัวเรา (Actor)
-                        text: `Drain +${healAmount}`, 
-                        type: "HEAL" 
-                    });
+                const drainAmount = Math.floor(result.damage * 0.3);
+                if (drainAmount > 0) {
+                    result.heal = drainAmount;
+                    result.textsToAdd.push({ target: -1, text: `Drain`, type: "HEAL" });
                 }
-            }
-          break;
-
+        }
+        break;
 
 
 

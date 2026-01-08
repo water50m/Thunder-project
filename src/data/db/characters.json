@@ -19,7 +19,7 @@
       "description": "เผาผลาญศัตรูทั้งหมด (30 Dmg/3 Turn)",
       "effects": [
         {
-          "effect": "HealOverTime",
+          "effect": "DmgOneHit",
           "value": 80,
           "duration": 0,
           "target": "ALL_ENEMIES"
@@ -134,7 +134,7 @@
           "target": "SINGLE_ALLY"
         },
         {
-          "effect": "BUFF_POWER",
+          "effect": "BuffAttack",
           "value": 20,
           "duration": 2,
           "target": "SELF",

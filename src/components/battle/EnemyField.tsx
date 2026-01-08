@@ -1,14 +1,16 @@
 import React from 'react';
+import { useState, useEffect } from 'react';
 import { Card as CardType } from '@/data/cards';
 import { FloatingTextType, ActiveStatus, FloatingTextData } from '@/data/typesEffect';
 import { BattleUnit } from '@/types/battles'
-
+import { ShakingState } from '@/hooks/battle/useBattleUI'
+import { ShakeType } from '@/hooks/battle/useBattleUI';
 // --- Types ---
 export type EnemyRank = 'MINION' | 'ELITE' | 'BOSS';
 
 interface Props {
   enemies: BattleUnit[];          // ✅ Input: รายชื่อศัตรูที่จะให้แสดง
-  shaking: boolean[];              // Animation สั่น
+  shaking: ShakingState;              // Animation สั่น
   floatingTexts: FloatingTextData[];          // ลอยตัวเลข
   enemyCardDisplay: CardType | null; // การ์ดที่ศัตรูกำลังใช้
   onFloatingTextComplete: (targetIdx: number, textId: string) => void;
@@ -56,6 +58,20 @@ export default function EnemyField({
   onFloatingTextComplete 
 }: Props) {
 
+    const getShakeStyle = (status: ShakeType) => {
+        switch (status) {
+            case 'DAMAGE':
+                // 🔴 แดง + สั่นแรง
+                return 'animate-shake bg-red-900/80 border-red-500';
+            case 'BLOCK':
+                // 🔵 ฟ้า/น้ำเงิน + สั่น (หรือจะทำ animate-bump เบาๆ ก็ได้)
+                return 'animate-shake bg-blue-800/80 border-blue-400'; 
+            default:
+                // ⚫ ปกติ
+                return 'bg-gray-800';
+        }
+    };
+
   return (
     <div className="flex items-end justify-center gap-2 md:gap-6 perspective-1000">
       
@@ -77,9 +93,11 @@ export default function EnemyField({
             ft => ft.side === 'ENEMY' && ft.targetIndex === index
         );
 
-        // 4. ✅ Shaking (ใช้ index เพราะ shaking มักจะเป็น array ตามลำดับ)
-        const isShaking = shaking[index];
+        // 4. ✅ Shaking 
+        const shakeStatus = shaking.enemies[index] || 'NONE';
 
+        
+        
         // ฟังก์ชันเลือกสีตาม Rarity
         const getBorderColor = (rank: string = 'COMMON') => {
             switch (rank) {
@@ -128,16 +146,28 @@ export default function EnemyField({
                 {/* 2. Character Sprite */}
                 <div 
                     className={`
-                        relative ${sizeClass} ${borderClass} ${getBorderColor(enemy.character.rank)} bg-gray-800 
+                        relative ${sizeClass} ${borderClass} ${getBorderColor(enemy.character.rank)} 
                         flex items-center justify-center shadow-lg
                         transition-transform duration-100
-                        ${isShaking ? 'translate-x-[-5px] bg-red-900/50' : 'bg-gradient-to-br from-red-950 to-black'}
+                        
+                        ${getShakeStyle(shakeStatus)}
                     `}
                 >
+                    {/*  // ✅ 1. ใส่ Logic พื้นหลัง: ถ้าสั่นให้เป็นสีแดงเจ็บๆ ถ้าปกติเป็นสีเทา */}
+                    {/* // ✅ 2. ใส่ Class Animation: ถ้าสั่นให้ใส่ animate-shake */}
                     <span className={`${enemy.character.role === 'Boss' ? 'text-8xl md:text-9xl' : 'text-5xl'} filter drop-shadow-md`}>
                         {/* หรือ enemy.character.avatar */}
-                        {enemy.character.avatar || "👾"} 
+                        {enemy.character.avatar || "👾"}
                     </span>
+                    
+                    {shakeStatus === 'BLOCK' && (
+                        <div className="absolute inset-0 z-20 flex items-center justify-center animate-pulse">
+                            {/* โล่ขนาดใหญ่ + โปร่งแสง */}
+                            <span className="text-8xl md:text-9xl opacity-60 filter drop-shadow-[0_0_10px_rgba(59,130,246,0.8)]">
+                                🛡️
+                            </span>
+                        </div>
+                    )}
 
                     {/* ✅ Floating Text (Loop จาก myTexts ที่กรองมาแล้ว) */}
                     {myTexts.map((ft) => (

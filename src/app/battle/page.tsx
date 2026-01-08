@@ -200,8 +200,6 @@ const handleSubmitCheat = (e: React.FormEvent) => {
         
         // เช็ค Shaking (ต้องดูว่า shaking เก็บเป็น array ธรรมดาหรือแยก side)
         // สมมติว่าเก็บแบบ index ตรงตัว
-        const isShaking = shaking[realIndex]; 
-
 
         return (
             <UnitCard
@@ -219,7 +217,7 @@ const handleSubmitCheat = (e: React.FormEvent) => {
                 
                 isDead={unit.isDead}           // ใช้จาก unit ชัวร์สุด
                 isSelected={isSelected}
-                isShaking={isShaking}
+                shaking={shaking}
 
                 // ✅ แก้จุดที่ 2: Statuses ไม่ได้อยู่แยกแล้ว แต่อยู่ใน unit
                 statuses={unit.statuses} 
@@ -341,7 +339,7 @@ const handleSubmitCheat = (e: React.FormEvent) => {
                         {/* Value Badge */}
                         <div className={`
                             text-center font-mono font-bold text-xl py-1 rounded bg-black/20
-                            ${card.type === 'Attack' ? 'text-red-400' : card.type === 'Defend' ? 'text-blue-400' : 'text-green-400'}
+                            ${card.type === 'Attack' ? 'text-red-400' : card.type === 'Barrier' ? 'text-blue-400' : 'text-green-400'}
                         `}>
                             {card.value > 0 ? card.value : (card.type === 'Special' ? 'BUFF' : '-')}
                         </div>
