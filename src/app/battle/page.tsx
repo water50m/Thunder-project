@@ -142,13 +142,13 @@ const handleSubmitCheat = (e: React.FormEvent) => {
       <div className="absolute top-16 right-4 z-50 flex flex-col items-end font-mono">
     
         {/* 1. ปุ่ม Toggle เปิด/ปิด (จะจางๆ ถ้าไม่ได้เอาเมาส์ไปชี้) */}
-        <button 
+        {/* <button 
             onClick={() => setCheatOpen(!isCheatOpen)}
             className="mb-2 bg-black/50 hover:bg-black/90 text-white p-2 rounded-full border border-gray-600 transition-all shadow-lg backdrop-blur-sm"
             title="Open Developer Console"
         >
             {isCheatOpen ? '❌' : '💻_'}
-        </button>
+        </button> */}
 
         {/* 2. ช่องพิมพ์คำสั่ง (แสดงเฉพาะตอนเปิด) */}
         {isCheatOpen && (
